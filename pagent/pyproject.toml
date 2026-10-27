@@ -1,0 +1,22 @@
+[project]
+name = "pagent"
+version = "0.1.0"
+description = "通过复刻 DeepSeek Harness 学出来的 Python Agent"
+readme = "README.md"
+authors = [
+    { name = "posase", email = "188380780@qq.com" }
+]
+requires-python = ">=3.13"
+dependencies = []
+
+[dependency-groups]
+dev = [
+    "pytest>=9.1.1",
+]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+
+[build-system]
+requires = ["uv_build>=0.11.14,<0.12.0"]
+build-backend = "uv_build"

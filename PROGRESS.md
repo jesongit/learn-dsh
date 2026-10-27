@@ -5,17 +5,17 @@
 
 ## 当前状态
 
-- **当前里程碑**：M0（建立地图与设计）——总览课已讲，演示已完成，等用户作业
+- **当前里程碑**：M1（最小 Agent Loop）· 第 1 节「接缝先行」——任务已布置，等用户编码
 - **最近更新**：2026-10-28
-- **下一步**：用户完成两个动作——① 亲手点：打开带 token 的 Web UI 逛一圈（服务已在 `127.0.0.1:3080` 运行，完整 URL 从 `pnpm dsh web` 的启动日志取，token 不入库）；② 在 `notes/00-总览与设计.md` 第 9 节回答设计三问（Q1 场景 / Q2 最小版本 / Q3 减法）。之后老师批改讨论，进入 M1 第一节
-- **运行环境**：deepseek-harness 已 `pnpm install` + `pnpm run build`（10 关全过）；`pnpm dsh web` 后台运行中；`uv 0.11.14` / `Python 3.14.3` / `node 24` 就绪
+- **下一步**：用户完成 `pagent/src/pagent/mock.py` 的 TODO(1)(2) 与 `pagent/tests/test_mock.py` 的 TODO(1)(2)(3)（提示都写在注释里），目标 `uv run pytest -v` 4 passed；完成后进 M1-02「loop 主循环」。讲解全文见 `notes/M1/01-接缝先行.md`
+- **运行环境**：deepseek-harness 已构建；`pnpm dsh web` 后台运行中（127.0.0.1:3080，token 从启动日志取）；PAgent 用 uv 管理（uv 自带 CPython 3.13 + pytest 9.1.1）
 
 ## 里程碑进度
 
 | 里程碑 | 状态 | 备注 |
 |---|---|---|
-| M0 建立地图与设计 | 进行中 | 总览课已讲（notes/00），harness 已构建并启动；待用户 UI 体验 + 设计三问 |
-| M1 最小 Agent Loop | 未开始 | 核心里程碑，优先投入 |
+| M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
+| M1 最小 Agent Loop | 进行中 | 第 1 节接缝先行：脚手架已建，用户写 MockAdapter + 3 个测试 |
 | M2 真实 LLM + 流式 + 中断 | 未开始 | |
 | M3 工具系统 | 未开始 | |
 | M4 上下文管理 | 未开始 | |
@@ -49,3 +49,5 @@
 | 2026-10-28 | 教材形态定档：AI 备课消化 harness 源码，用户不直接读源码；教材自包含（含提炼讲解的代码片段），SHA+路径仅作选读出处 | 用户反馈：降低直接啃源码的门槛 |
 | 2026-10-28 | 教材图文并茂：涉及流程/生命周期/架构的节必须配图（Mermaid 为主，ASCII 为辅，复杂架构配 SVG 放 notes/assets/） | 用户要求，方便理解 |
 | 2026-10-28 | 操作全代办：环境/构建/运行/测试/演示由 AI 执行；用户只负责理解内容与核心编码，仅「亲手点」亲手做 | 用户反馈：聚焦学习，其他尽量由 AI 完成 |
+| 2026-10-28 | PAgent 场景定档：总结微博热搜。工具具体化为 `fetch_weibo_hot_search`（weibo.com/ajax/side/hotSearch 非官方 JSON 接口，M2 起真实调用）；v1 砍掉多模态/持久化/并行工具 | 用户设计三问 + 老师批改收窄 |
+| 2026-10-28 | M1-01 分工：types.py / adapter.py / 示例测试由 AI 生成并讲解；mock.py 的 tool_call_response 与 MockAdapter.stream、3 个测试由用户亲手写 | 教学模式约定（AI 生成示范 + TODO 骨架填空） |
