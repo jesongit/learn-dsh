@@ -1,9 +1,14 @@
 """PAgent —— 通过复刻 DeepSeek Harness 学出来的 Python Agent。
 
-M1-01 起步：消息/流式词汇表 + LLM 适配器接缝 + Mock 适配器。
+M1：词汇表 + adapter 接缝 + mock 模型 + 会话日志 + agent loop。
 """
 
 from pagent.adapter import LLMAdapter, LlmService
+from pagent.agent import Agent
+from pagent.assembler import BlockAssembler
+from pagent.inbox import Inbox, InboxMessage
+from pagent.session import Session, SessionEvent
+from pagent.tools import ToolOutcome, ToolService
 from pagent.types import (
     BlockEnd,
     BlockStart,
@@ -22,20 +27,28 @@ from pagent.types import (
 )
 
 __all__ = [
+    "Agent",
+    "BlockAssembler",
     "BlockEnd",
     "BlockStart",
     "Finish",
     "GenerateOptions",
+    "Inbox",
+    "InboxMessage",
     "LLMAdapter",
     "LlmService",
     "Message",
+    "Session",
+    "SessionEvent",
     "StreamChunk",
     "TextBlock",
     "TextDelta",
     "TokenUsage",
     "ToolCallBlock",
     "ToolCallDelta",
+    "ToolOutcome",
     "ToolResultBlock",
     "ToolSchema",
+    "ToolService",
     "UsageChunk",
 ]
