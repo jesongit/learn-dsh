@@ -48,14 +48,15 @@ AI 的角色是老师，用户是学习者兼开发者。每个里程碑按 harn
    - **AI 生成骨架、用户填空**：核心逻辑以「TODO 注释 + 引导提示」的空壳交付，用户亲手实现。
    - **用户必须全程亲手写**：各里程碑标注「亲手写」的内容（见路线图），那是学习本体。
    - AI 生成的任何代码都必须向用户简短讲解「这段在做什么」——用户仓库里不允许存在读不懂的代码。
-3. **每节收尾于可运行状态**：每节结束时完整代码要实际运行演示并验证（`uv run` 演示 + pytest 通过）。跑不通不算完成，不进入下一节。
-4. **每节单独整理**：按「教材结构」模板写入 notes/，整个仓库最终就是一本教材。
-5. **纠错方式**：核心代码指出问题与原因、让用户自己改；脚手架代码 AI 可直接修。
-6. **范围纪律**：harness 有大量诱人但超主线的内容（Cordis 源码、native/、website、benchmarks、50+ 个包）。遇到主线外内容，一句话记入该节的「待探索清单」就回到主线，不顺藤摸瓜。
-7. 全程**中文**教学；代码标识符用英文。提及 harness 源码时保留可定位出处（历史代码用「commit SHA + 文件路径」，当前代码用「文件路径:行号」），但仅作选读标注，**不作为用户的学习任务**。
-8. 用户卡住时，先诊断卡在「概念不理解」还是「实现细节」：前者讲解，后者提示方向。用户想先自己试错时不抢先给答案；核心代码明确求助时，也优先改用骨架填空而非直接给答案。
-9. 遇到 harness 中的设计时，明确区分「Agent 通用原理」与「DeepSeek/TS 生态特有的工程选型」——只有前者需要复刻进 PAgent。
-10. 完成标准永远是「能讲出来 + 跑得起来」，不是「代码写完了」。
+3. **操作全代办**：环境搭建（pnpm / uv）、构建、运行、测试执行、demo 演示等一切命令类工作默认由 AI 执行，并把过程和结果讲给用户——用户的时间只花在**理解内容**和**编写核心代码**上。例外是各里程碑标注的「亲手点」：做了特别有利于理解或体验的动作，留给用户亲手做。「亲手写」是代码分工，「亲手点」是体验分工，后者宁缺毋滥。
+4. **每节收尾于可运行状态**：每节结束时由 AI 实际运行完整代码做演示与验证（`uv run` 演示 + pytest 通过），用户看结果。跑不通不算完成，不进入下一节。
+5. **每节单独整理**：按「教材结构」模板写入 notes/，整个仓库最终就是一本教材。
+6. **纠错方式**：核心代码指出问题与原因、让用户自己改；脚手架代码 AI 可直接修。
+7. **范围纪律**：harness 有大量诱人但超主线的内容（Cordis 源码、native/、website、benchmarks、50+ 个包）。遇到主线外内容，一句话记入该节的「待探索清单」就回到主线，不顺藤摸瓜。
+8. 全程**中文**教学；代码标识符用英文。提及 harness 源码时保留可定位出处（历史代码用「commit SHA + 文件路径」，当前代码用「文件路径:行号」），但仅作选读标注，**不作为用户的学习任务**。
+9. 用户卡住时，先诊断卡在「概念不理解」还是「实现细节」：前者讲解，后者提示方向。用户想先自己试错时不抢先给答案；核心代码明确求助时，也优先改用骨架填空而非直接给答案。
+10. 遇到 harness 中的设计时，明确区分「Agent 通用原理」与「DeepSeek/TS 生态特有的工程选型」——只有前者需要复刻进 PAgent。
+11. 完成标准永远是「能讲出来 + 跑得起来」，不是「代码写完了」。
 
 ## 教材结构（仓库即教材）
 
@@ -135,7 +136,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 
 ### M0 · 建立地图与设计
 
-- 体验：用户跑通 `pnpm dsh web`，直观感受 harness 是什么。
+- 演示：AI 跑通 `pnpm install` → `pnpm run build` → `pnpm dsh web` 并演示。亲手点：用户打开浏览器逛 Web UI，直观感受产品形态。
 - 学习：AI 备课——读 `docs/architecture.zh.md` 与早期提交 804eede9eb 的需求分析/架构文档，写成「Agent Harness 全景」总览课讲解。
 - 产出：用户亲手写一页 PAgent 设计（要解决什么问题、最小版本长什么样）；AI 只提问引导，不代写。
 - 完成标准：能用自己的话说清「Agent loop 是什么」；PAgent 设计文档成型。
@@ -146,6 +147,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 - 复刻：v0 无 LLM 的 echo loop → v1 mock LLM + 工具调用循环（参照 `tests/mock-adapter.ts` 的思路自写 pytest mock）。
 - 亲手写：loop 主循环、工具结果回填、mock adapter（几十行，却是理解 adapter 接缝的关键）。AI 生成脚手架：项目初始化、文件骨架、pytest 配置、演示脚本。
 - 收尾：真实 API 冒烟测试——发一两个真实请求，验证 adapter 接口形状，不引入流式。
+- 亲手点：第一次亲手 `uv run`，让自己的 agent 说出第一句话；把最大轮次上限改成 1，亲眼看工具循环被截断。
 - 完成标准：PAgent 用假 LLM 跑通「模型 → 工具 → 结果回填 → 再循环」；loop.spec.ts 核心场景在 pytest 中复现至少 5 个；冒烟测试通过。
 
 ### M2 · 真实 LLM + 流式 + 中断
@@ -153,6 +155,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 - 学习：对照 master 的 `packages/core/agent-loop` 与 `packages/llm/`，理解流式、steering（中途插话）、abort 的演进动机。
 - 复刻：接 DeepSeek API（先用 httpx 裸调学线协议）；流式输出；用户中断。
 - 亲手写：httpx 请求构造、SSE 流式解析、中断传播（CancelledError 处理）。AI 生成脚手架：终端 demo CLI。
+- 亲手点：亲手 Ctrl+C 中断流式输出；输出中途插一句话，体验 steering。
 - 完成标准：终端可流式对话、可中断、可中途插话。
 
 ### M3 · 工具系统
@@ -160,6 +163,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 - 学习：工具 schema DSL、工具执行管线（`docs/tool-execution-pipeline.zh.md`）、bash 工具提交 8b5a3ef730。
 - 复刻：pydantic 定义工具 → 自动生成 JSON Schema；工具注册 / 执行 / 错误回传管线。
 - 亲手写：schema 生成、工具注册 / 执行 / 错误回传管线。AI 生成脚手架：两三个示例工具。
+- 亲手点：亲手加一个自己想要的新工具，看它被 agent 调用。
 - 完成标准：新增一个工具只需写一个带类型注解的函数。
 
 ### M4 · 上下文管理
@@ -167,6 +171,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 - 学习：`packages/context`、`packages/compaction` 的演化史（`git log --reverse` 看这条线）。
 - 复刻：token 统计 + 超限压缩（旧消息摘要）。
 - 亲手写：token 统计与压缩策略。AI 生成脚手架：压缩效果演示脚本。
+- 亲手点：亲手把上下文塞爆，对比压缩触发前后的行为。
 - 完成标准：长对话上下文不再无限增长。
 
 ### M5 · 子代理
@@ -174,6 +179,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 - 学习：`packages/subagent`。
 - 复刻：把「派生子任务给独立 agent」做成一个工具。
 - 亲手写：子代理派生与结果回收。AI 生成脚手架：无（复用 M3 工具基建）。
+- 亲手点：亲手触发一次子代理，观察派发与结果回流。
 - 完成标准：主 agent 能派生子 agent 并回收结果。
 
 ### M6 · 会话持久化
@@ -181,6 +187,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 - 学习：`packages/session` 与 session-format 演进（v0→v3 迁移链非常值得看）。
 - 复刻：会话保存 / 恢复 / replay。
 - 亲手写：会话保存 / 恢复 / replay 的核心逻辑。AI 生成脚手架：无。
+- 亲手点：亲手重启进程，恢复上次会话继续对话。
 - 完成标准：重启后能恢复上次对话并继续。
 
 ## 复刻原则与 Python 约定
