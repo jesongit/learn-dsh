@@ -5,9 +5,9 @@
 
 ## 当前状态
 
-- **当前里程碑**：M1（最小 Agent Loop）· 第 1 节「接缝先行」——任务已布置，等用户编码
+- **当前里程碑**：M1 · 第 1 节「接缝先行」✅ 完成——MockAdapter 全绿（5 passed）
 - **最近更新**：2026-10-28
-- **下一步**：用户完成 [mock.py](pagent/src/pagent/mock.py) 的 TODO(1)(2) 与 [test_mock.py](pagent/tests/test_mock.py) 的 TODO(1)(2)(3)（提示都写在注释里），目标 `uv run pytest -v` 4 passed；完成后进 M1-02「loop 主循环」。讲解全文见 [notes/M1/01-接缝先行.md](notes/M1/01-接缝先行.md)
+- **下一步**：M1-02「loop 主循环」——老师备课精讲 loop.ts 的 turn/step 结构，AI 生成 Session 事件日志与 BlockAssembler 脚手架，用户亲手写 `run_loop` 主循环，pytest 复现 loop.spec 的首个场景（简单 turn：领消息 → 请求模型 → 回 idle，事件序列断言）
 - **运行环境**：deepseek-harness 已构建；`pnpm dsh web` 后台运行中（127.0.0.1:3080，token 从启动日志取）；PAgent 用 uv 管理（uv 自带 CPython 3.13 + pytest 9.1.1）
 
 ## 里程碑进度
@@ -15,7 +15,7 @@
 | 里程碑 | 状态 | 备注 |
 |---|---|---|
 | M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
-| M1 最小 Agent Loop | 进行中 | 第 1 节接缝先行：脚手架已建，用户写 MockAdapter + 3 个测试 |
+| M1 最小 Agent Loop | 进行中 | 第 1 节「接缝先行」✅ 5 passed；下一节 loop 主循环 |
 | M2 真实 LLM + 流式 + 中断 | 未开始 | |
 | M3 工具系统 | 未开始 | |
 | M4 上下文管理 | 未开始 | |
@@ -24,7 +24,12 @@
 
 ## 关键收获
 
-（尚无 —— 从 M0 开始记录）
+- **chunk 流五拍节奏**：开块 → 增量 → 收块 → 记账 → 宣终；`finish` 原因（stop / tool-calls）是 loop 决定「要不要再转一圈」的方向盘。（M1-01，用户实现并经测试确认）
+- **script 是响应队列**：每个元素是一次完整响应，`stream()` 每被请求一次消费一条；response 函数是编剧、测试是排戏人、MockAdapter 是演员。
+- **流式参数分片**：工具名只在第一片增量出现，`name=None` =「本片不涉及身份」；`BlockEnd` 永远携带完整块，不想拼增量的消费方直接用它。
+- **async generator 调用即返回、迭代才执行**：「脚本耗尽」的抛错要等迭代时才发生。
+- **seam 落地**：换模型 = 换注册的 adapter，loop 一行不改——types.py + adapter.py 已就位。
+- **测试是行为规格**：没有测试保护的工作代码只是碰巧没暴露的坏代码——本节回归测试两次当场抓雷。
 
 ## 遗留问题 / 待办
 
@@ -49,5 +54,6 @@
 | 2026-10-28 | 教材形态定档：AI 备课消化 harness 源码，用户不直接读源码；教材自包含（含提炼讲解的代码片段），SHA+路径仅作选读出处 | 用户反馈：降低直接啃源码的门槛 |
 | 2026-10-28 | 教材图文并茂：涉及流程/生命周期/架构的节必须配图（Mermaid 为主，ASCII 为辅，复杂架构配 SVG 放 notes/assets/） | 用户要求，方便理解 |
 | 2026-10-28 | 操作全代办：环境/构建/运行/测试/演示由 AI 执行；用户只负责理解内容与核心编码，仅「亲手点」亲手做 | 用户反馈：聚焦学习，其他尽量由 AI 完成 |
+| 2026-10-28 | M1-01 测试断言由 AI 参考实现补全（用户明确要求）；实现为用户亲手写 | 例外一次：M1-02/03 的场景测试仍须用户亲手写 |
 | 2026-10-28 | PAgent 场景定档：总结微博热搜。工具具体化为 `fetch_weibo_hot_search`（weibo.com/ajax/side/hotSearch 非官方 JSON 接口，M2 起真实调用）；v1 砍掉多模态/持久化/并行工具 | 用户设计三问 + 老师批改收窄 |
 | 2026-10-28 | M1-01 分工：types.py / adapter.py / 示例测试由 AI 生成并讲解；mock.py 的 tool_call_response 与 MockAdapter.stream、3 个测试由用户亲手写 | 教学模式约定（AI 生成示范 + TODO 骨架填空） |

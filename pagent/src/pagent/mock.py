@@ -67,7 +67,29 @@ def tool_call_response(
     - 收尾 UsageChunk + Finish —— 注意 finish 原因是 "tool-calls"，
       不是 "stop"（下一节 loop 就靠这个判断要不要继续转）
     """
-    raise NotImplementedError("TODO(1)：照上面的要点实现 tool_call_response")
+    if text is None:
+        index = 0
+        text_len = 0
+        text_chunks = []
+    else:
+        index = 1
+        text_len = len(text)
+        text_chunks = text_response(text)[:-2]
+
+    args_str=json.dumps(args)
+    mid = len(args_str) // 2
+    left = args_str[:mid]
+    right = args_str[mid:]
+    tool_chunks: list[StreamChunk] = [
+        BlockStart(index=index, block_type="tool-call"),
+        ToolCallDelta(index=index, id=call_id, name=name, arguments_delta=left),
+        ToolCallDelta(index=index, id=call_id, name=None, arguments_delta=right),
+        BlockEnd(index=index, block=ToolCallBlock(id=call_id, name=name,arguments=args_str)),
+        UsageChunk(usage=TokenUsage(input_tokens=10, output_tokens=text_len + len(args_str))),
+        Finish(reason="tool-calls")
+    ]
+    return text_chunks + tool_chunks
+    # raise NotImplementedError("TODO(1)：照上面的要点实现 tool_call_response")
 
 
 class MockAdapter(LLMAdapter):
@@ -75,9 +97,9 @@ class MockAdapter(LLMAdapter):
 
     TODO(2)：实现 stream()。三条规则：
       1. 先把 options 记进 self.requests（loop 发什么请求，测试要能查）
-      2. 从 self.script 取走下一条脚本：list.pop(0)；取不到就
-         raise RuntimeError("MockAdapter: 脚本耗尽")
-      3. 依次 yield 脚本里的每个 chunk
+      2. 从 self.script 取走下一条**响应**：list.pop(0) 得到一串 chunks；
+         队列空了就 raise RuntimeError("MockAdapter: 脚本耗尽")
+      3. 依次 yield 这条响应里的每个 chunk
 
     注意：LLMAdapter 接口要求 stream 是 async generator —— 把下面的
     方法改成 async def，并逐个 yield，而不是 return 一个列表。
@@ -86,9 +108,17 @@ class MockAdapter(LLMAdapter):
     只吐半个块就挂起，直到被 abort。想想这个怎么写？
     """
 
-    def __init__(self, script: list[StreamChunk]) -> None:
+    def __init__(self, script: list[list[StreamChunk]]) -> None:
+        """剧本 = **响应队列**：每个元素是一次完整响应（一串 chunks，
+        由 text_response / tool_call_response 生成）。loop 每发一次
+        请求，stream() 取走队首的一整条响应；三次请求消费三条响应。
+        """
         self.script = list(script)
         self.requests: list[GenerateOptions] = []
 
-    def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
-        raise NotImplementedError("TODO(2)：改成 async generator 并实现三条规则")
+    async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
+        self.requests.append(options)
+        if not self.script:
+            raise RuntimeError("MockAdapter: 脚本耗尽")
+        for chunk in self.script.pop(0):
+            yield chunk
