@@ -36,7 +36,7 @@ D:\code\PAgent\
 2. 「关键收获」必须用用户能看懂的语言，宁缺毋滥——只记录用户确认理解的内容，这是跨会话记忆，质量比数量重要。
 3. 做出任何方向性选择（技术选型、路径取舍）时，追加到「决策记录」，避免下次会话重新讨论。
 
-**里程碑切换时**：在 `notes/` 下建对应笔记文件（如 `notes/M1-agent-loop.md`），沉淀该里程碑的深度内容（源码精读摘记、新旧对照结论）。
+**里程碑切换时**：在 `notes/` 下建对应章节目录（如 `notes/M1/`），每节课一个文件（`01-接缝先行.md`…），沉淀该里程碑的深度内容（概念讲解、源码摘记、新旧对照结论）。
 
 ## 教学模式（老师与学生）
 
@@ -88,7 +88,7 @@ notes/
 
 **图文并茂**：涉及流程、生命周期、架构的节必须配图；每节至少一图。选型约定——流程 / 时序 / 状态用 **Mermaid**（flowchart / sequenceDiagram / stateDiagram，GitHub 与 VS Code 预览可直接渲染，源码本身也可读作降级兜底）；简单局部示意用 ASCII 字符画；复杂全景架构可手写 SVG 放 `notes/assets/` 并用相对路径嵌入。配图必须紧邻其解释的文字，不给「孤图」；讲 loop 就画 loop 的流程图，讲工具往返就画时序图，讲会话版本演进就画状态图。**Mermaid 书写规范（防中文截断）**：节点标签只放关键词，解释写在正文；长标签用 `<br/>` 拆成短行；图首行加 `%%{init: {"fontFamily": "Microsoft YaHei"}}%%` 指定中文字体；裸节点声明必须独占一行。
 
-术语表：`notes/术语表.md`，loop / turn / step / steering / compaction / harness…中英对照 + 一句话解释，可参考 harness 的 `docs/glossary.zh.md` 起步。
+术语表：[notes/术语表.md](notes/术语表.md)，loop / turn / step / steering / compaction / harness…中英对照 + 一句话解释，可参考 harness 的 [docs/glossary.zh.md](deepseek-harness/docs/glossary.zh.md) 起步。
 
 **PAgent 每节收尾做一次 git commit**（如 `M1-03: 工具结果回填`），让 pagent 自己的提交历史成为第二本教材——与我们读 harness 历史的方式互为镜像，也提供随时回滚的安全网。
 
@@ -126,9 +126,9 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 | ab19fed77c | DeepSeek LLM 适配器两个 |
 | d02e9f1bd6 | 包结构大重组（agent-loop → core/agent-loop） |
 
-当前 master 上 agent loop 位于 `packages/core/agent-loop`。
+当前 master 上 agent loop 位于 [packages/core/agent-loop](deepseek-harness/packages/core/agent-loop/README.zh.md)。
 
-文档入口（都有中文版）：`docs/architecture.zh.md`、`docs/agent-lifecycle.zh.md`、`docs/tool-execution-pipeline.zh.md`、`docs/cordis-primer.zh.md`。
+文档入口（都有中文版）：[docs/architecture.zh.md](deepseek-harness/docs/architecture.zh.md)、[docs/agent-lifecycle.zh.md](deepseek-harness/docs/agent-lifecycle.zh.md)、[docs/tool-execution-pipeline.zh.md](deepseek-harness/docs/tool-execution-pipeline.zh.md)、[docs/cordis-primer.zh.md](deepseek-harness/docs/cordis-primer.zh.md)。
 
 ## 里程碑路线图
 
@@ -137,7 +137,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 ### M0 · 建立地图与设计
 
 - 演示：AI 跑通 `pnpm install` → `pnpm run build` → `pnpm dsh web` 并演示。亲手点：用户打开浏览器逛 Web UI，直观感受产品形态。
-- 学习：AI 备课——读 `docs/architecture.zh.md` 与早期提交 804eede9eb 的需求分析/架构文档，写成「Agent Harness 全景」总览课讲解。
+- 学习：AI 备课——读 [docs/architecture.zh.md](deepseek-harness/docs/architecture.zh.md) 与早期提交 804eede9eb 的需求分析/架构文档，写成「Agent Harness 全景」总览课讲解。
 - 产出：用户亲手写一页 PAgent 设计（要解决什么问题、最小版本长什么样）；AI 只提问引导，不代写。
 - 完成标准：能用自己的话说清「Agent loop 是什么」；PAgent 设计文档成型。
 
@@ -152,7 +152,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 
 ### M2 · 真实 LLM + 流式 + 中断
 
-- 学习：对照 master 的 `packages/core/agent-loop` 与 `packages/llm/`，理解流式、steering（中途插话）、abort 的演进动机。
+- 学习：对照 master 的 [packages/core/agent-loop](deepseek-harness/packages/core/agent-loop/README.zh.md) 与 [packages/llm](deepseek-harness/packages/llm)，理解流式、steering（中途插话）、abort 的演进动机。
 - 复刻：接 DeepSeek API（先用 httpx 裸调学线协议）；流式输出；用户中断。
 - 亲手写：httpx 请求构造、SSE 流式解析、中断传播（CancelledError 处理）。AI 生成脚手架：终端 demo CLI。
 - 亲手点：亲手 Ctrl+C 中断流式输出；输出中途插一句话，体验 steering。
@@ -160,7 +160,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 
 ### M3 · 工具系统
 
-- 学习：工具 schema DSL、工具执行管线（`docs/tool-execution-pipeline.zh.md`）、bash 工具提交 8b5a3ef730。
+- 学习：工具 schema DSL、工具执行管线（[docs/tool-execution-pipeline.zh.md](deepseek-harness/docs/tool-execution-pipeline.zh.md)）、bash 工具提交 8b5a3ef730。
 - 复刻：pydantic 定义工具 → 自动生成 JSON Schema；工具注册 / 执行 / 错误回传管线。
 - 亲手写：schema 生成、工具注册 / 执行 / 错误回传管线。AI 生成脚手架：两三个示例工具。
 - 亲手点：亲手加一个自己想要的新工具，看它被 agent 调用。
@@ -168,7 +168,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 
 ### M4 · 上下文管理
 
-- 学习：`packages/context`、`packages/compaction` 的演化史（`git log --reverse` 看这条线）。
+- 学习：[packages/context](deepseek-harness/packages/context)、[packages/compaction](deepseek-harness/packages/compaction) 的演化史（`git log --reverse` 看这条线）。
 - 复刻：token 统计 + 超限压缩（旧消息摘要）。
 - 亲手写：token 统计与压缩策略。AI 生成脚手架：压缩效果演示脚本。
 - 亲手点：亲手把上下文塞爆，对比压缩触发前后的行为。
@@ -176,7 +176,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 
 ### M5 · 子代理
 
-- 学习：`packages/subagent`。
+- 学习：[packages/subagent](deepseek-harness/packages/subagent)。
 - 复刻：把「派生子任务给独立 agent」做成一个工具。
 - 亲手写：子代理派生与结果回收。AI 生成脚手架：无（复用 M3 工具基建）。
 - 亲手点：亲手触发一次子代理，观察派发与结果回流。
@@ -184,7 +184,7 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 
 ### M6 · 会话持久化
 
-- 学习：`packages/session` 与 session-format 演进（v0→v3 迁移链非常值得看）。
+- 学习：[packages/session](deepseek-harness/packages/session) 与 session-format 演进（v0→v3 迁移链非常值得看）。
 - 复刻：会话保存 / 恢复 / replay。
 - 亲手写：会话保存 / 恢复 / replay 的核心逻辑。AI 生成脚手架：无。
 - 亲手点：亲手重启进程，恢复上次会话继续对话。

@@ -7,7 +7,7 @@
 
 - **当前里程碑**：M1（最小 Agent Loop）· 第 1 节「接缝先行」——任务已布置，等用户编码
 - **最近更新**：2026-10-28
-- **下一步**：用户完成 `pagent/src/pagent/mock.py` 的 TODO(1)(2) 与 `pagent/tests/test_mock.py` 的 TODO(1)(2)(3)（提示都写在注释里），目标 `uv run pytest -v` 4 passed；完成后进 M1-02「loop 主循环」。讲解全文见 `notes/M1/01-接缝先行.md`
+- **下一步**：用户完成 [mock.py](pagent/src/pagent/mock.py) 的 TODO(1)(2) 与 [test_mock.py](pagent/tests/test_mock.py) 的 TODO(1)(2)(3)（提示都写在注释里），目标 `uv run pytest -v` 4 passed；完成后进 M1-02「loop 主循环」。讲解全文见 [notes/M1/01-接缝先行.md](notes/M1/01-接缝先行.md)
 - **运行环境**：deepseek-harness 已构建；`pnpm dsh web` 后台运行中（127.0.0.1:3080，token 从启动日志取）；PAgent 用 uv 管理（uv 自带 CPython 3.13 + pytest 9.1.1）
 
 ## 里程碑进度
