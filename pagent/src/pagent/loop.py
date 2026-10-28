@@ -53,7 +53,10 @@ async def run_turn(agent: Agent) -> None:
     session.append("turn/start", {"turn": turn, "trigger": {"kind": "message"}})
 
     step = 0
-    #had_tool_calls = False
+    tool_calls = []
+    had_tool_calls = False
+    error = None
+    reason = "completed"
     while True:
         step += 1
 
@@ -68,54 +71,58 @@ async def run_turn(agent: Agent) -> None:
         #   if error: 落 "error" 事件 → break
         #   turn/end reason ← error 有则 "error"
 
-        # ---- 组装请求：模型历史是日志的投影，不是你手里攒的列表 ----
-        request = GenerateOptions(
-            model=agent.model,
-            messages=session.derive_messages(),
-            system=agent.system_prompt,
-            tools=agent.tools.schemas() or None,
-        )
+        try:
+            # ---- 组装请求：模型历史是日志的投影，不是你手里攒的列表 ----
+            request = GenerateOptions(
+                model=agent.model,
+                messages=session.derive_messages(),
+                system=agent.system_prompt,
+                tools=agent.tools.schemas() or None,
+            )
 
-        # ---- 流式请求模型 ----
-        assembler = BlockAssembler() # 组装器，组装返回的 chunks
-        # TODO(5)：async for chunk in agent.llm.stream(request):
-        #     先 session.append("assistant/chunk", {"turn": turn, "step": step, "chunk": chunk})
-        #     再 assembler.push(chunk)
-        #     （顺序别反：先记账再组装——「模型可见即已记录」）
-        async for chunk in agent.llm.stream(request):
-            session.append("assistant/chunk", {"turn": turn, "step": step, "chunk": chunk})
-            assembler.push(chunk)
+            # ---- 流式请求模型 ----
+            assembler = BlockAssembler() # 组装器，组装返回的 chunks
+            # TODO(5)：async for chunk in agent.llm.stream(request):
+            #     先 session.append("assistant/chunk", {"turn": turn, "step": step, "chunk": chunk})
+            #     再 assembler.push(chunk)
+            #     （顺序别反：先记账再组装——「模型可见即已记录」）
+            async for chunk in agent.llm.stream(request):
+                session.append("assistant/chunk", {"turn": turn, "step": step, "chunk": chunk})
+                assembler.push(chunk)
 
-        # TODO(6)：assistant = assembler.message()；
-        #          session.append("assistant/message", {"turn": turn, "step": step,
-        #                                               "content": assistant.content})
-        assistant = assembler.message()
-        session.append("assistant/message", {"turn": turn, "step": step, "content": assistant.content})
+            # TODO(6)：assistant = assembler.message()；
+            #          session.append("assistant/message", {"turn": turn, "step": step,
+            #                                               "content": assistant.content})
+            assistant = assembler.message()
+            session.append("assistant/message", {"turn": turn, "step": step, "content": assistant.content})
 
-        # ---- 执行本 step 的全部工具调用（TODO(6) 完成后 assistant 才存在）----
-        tool_calls = [
-            block for block in assistant.content if isinstance(block, ToolCallBlock)
-        ]
-        for call in tool_calls:
-            # TODO(7)：三步——
-            #   a. session.append("tool/call", {"turn": turn, "step": step,
-            #                       "call_id": call.id, "name": call.name,
-            #                       "arguments": call.arguments})
-            #   b. 解析参数：json.loads(call.arguments)，失败时回退原始字符串
-            #      （记得 import json）
-            #   c. outcome = await agent.tools.execute(call.id, call.name, parsed)
-            #      session.append("tool/result", {"turn": turn, "step": step,
-            #                          "call_id": outcome.call_id,
-            #                          "content": outcome.content,
-            #                          "is_error": outcome.is_error})
-            # ...  # 占位（Ellipsis）：实现 TODO(7) 时删掉
-            session.append("tool/call", {"turn": turn, "step": step, "call_id": call.id, "name": call.name, "arguments": call.arguments})
-            try:
-                parsed = json.loads(call.arguments)     # 正常路：解析成 dict
-            except json.JSONDecodeError:                # json 解析失败抛这个异常（ValueError 的子类）
-                parsed = call.arguments                 # 降级：把模型写的原始字符串当参数往下传
-            outcome = await agent.tools.execute(call.id, call.name, parsed)
-            session.append("tool/result", {"turn": turn, "step": step, "call_id": outcome.call_id, "content": outcome.content, "is_error": outcome.is_error})
+            # ---- 执行本 step 的全部工具调用（TODO(6) 完成后 assistant 才存在）----
+            tool_calls = [
+                block for block in assistant.content if isinstance(block, ToolCallBlock)
+            ]
+            for call in tool_calls:
+                # TODO(7)：三步——
+                #   a. session.append("tool/call", {"turn": turn, "step": step,
+                #                       "call_id": call.id, "name": call.name,
+                #                       "arguments": call.arguments})
+                #   b. 解析参数：json.loads(call.arguments)，失败时回退原始字符串
+                #      （记得 import json）
+                #   c. outcome = await agent.tools.execute(call.id, call.name, parsed)
+                #      session.append("tool/result", {"turn": turn, "step": step,
+                #                          "call_id": outcome.call_id,
+                #                          "content": outcome.content,
+                #                          "is_error": outcome.is_error})
+                # ...  # 占位（Ellipsis）：实现 TODO(7) 时删掉
+                session.append("tool/call", {"turn": turn, "step": step, "call_id": call.id, "name": call.name, "arguments": call.arguments})
+                try:
+                    parsed = json.loads(call.arguments)     # 正常路：解析成 dict
+                except json.JSONDecodeError:                # json 解析失败抛这个异常（ValueError 的子类）
+                    parsed = call.arguments                 # 降级：把模型写的原始字符串当参数往下传
+                outcome = await agent.tools.execute(call.id, call.name, parsed)
+                session.append("tool/result", {"turn": turn, "step": step, "call_id": outcome.call_id, "content": outcome.content, "is_error": outcome.is_error})
+        except Exception as e:
+            error = str(e)
+            reason = "error"
 
         # TODO(H)：step 之间消费插话（对照 harness：先排插话、再记 step/end、
         #          最后做方向盘决策，顺序别乱）——
@@ -130,21 +137,27 @@ async def run_turn(agent: Agent) -> None:
         # TODO(8)：step 收工：session.append("step/end", {"turn": turn, "step": step})
         session.append("step/end", {"turn": turn, "step": step})
 
+        if error is not None:
+            # 报错了，先关闭步骤，记录日志，退出步骤，等模型重新决策
+            session.append("error", {"turn": turn, "step": step, "message": error})
+            break
+
         # TODO(9)：方向盘——had_tool_calls = len(tool_calls) > 0；
         #          没调工具（模型不欠工作了）就 break，否则继续下一个 step
         # TODO(I)：方向盘升级——插话也算「欠模型一次请求」：
         #          had_tool_calls or steered 任一为真就继续（steered 来自 TODO(H)）
-        if len(tool_calls) == 0 and len(steered_msgs) == 0:
+        had_tool_calls = len(tool_calls) > 0
+        if not had_tool_calls and len(steered_msgs) == 0:
             break
-        # had_tool_calls = len(tool_calls) > 0
-        # if not had_tool_calls:
-        #     break
 
         # TODO(K)：max_steps 截断（防跑飞；agent.max_steps 构造传入）。伪代码：
         #   while 前: truncated = False
         #   此处（判定继续之后）: 若 step 已达 agent.max_steps → truncated=True → break
         #   turn/end reason 三态: error > max-steps > completed
+        if agent.max_steps is not None and step >= agent.max_steps:
+            reason = "max-steps"
+            break
 
     # TODO(10)：关轮：session.append("turn/end", {"turn": turn, "reason": "completed"})
-    session.append("turn/end", {"turn": turn, "reason": "completed"})
+    session.append("turn/end", {"turn": turn, "reason": reason})
     agent.running = False

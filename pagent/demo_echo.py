@@ -94,9 +94,20 @@ class EchoAdapter(LLMAdapter):
     """
 
     async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
-        for msg in reversed(options.messages):
-            
-            pass
+        # Adapter 负责把 模型的 chunk 返回
+        user_msgs = [msg for msg in reversed(options.messages) if msg.role=="user"]
+        last_user_content = user_msgs[0].content[0]
+        if isinstance(last_user_content, ToolResultBlock):
+            # 执行过工具
+            chunks = text_response("The echo tool has spoken.")
+        elif isinstance(last_user_content, TextBlock) and last_user_content.text.startswith("echo "):
+            text = last_user_content.text[5:]
+            chunks =  text_response("让我 echo 一下.") \
+                + tool_call_response("call-echo", "echo", {"text": text})
+        else:
+            chunks = text_response(f'你说："{last_user_content.text}"。试试 echo <内容>')
+        for chunk in chunks:
+            yield chunk
 
         # raise NotImplementedError("TODO(A)~(C)：按 docstring 的三条规则实现")
 
