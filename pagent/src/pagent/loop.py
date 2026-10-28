@@ -60,6 +60,18 @@ async def run_turn(agent: Agent) -> None:
         # TODO(4)：step 开张：session.append("step/start", {"turn": turn, "step": step})
         session.append("step/start", {"turn": turn, "step": step})
 
+        # TODO(J)：模型错误路径（harness 场景 14：模型炸了 → turn 以 error 结束）——
+        #   ① while 循环前初始化：error = None、had_tool_calls = False
+        #   ② 把「组装请求 → 工具执行完」整段缩进包进 try:，
+        #      except Exception as e: error = str(e)
+        #      （had_tool_calls = len(tool_calls) > 0 挪进 try 末尾）
+        #   ③ 排水插话、step/end 照旧执行（错误时日志叙事也要完整）
+        #   ④ step/end 之后、方向盘之前：
+        #        if error is not None:
+        #            session.append("error", {"turn": turn, "step": step, "message": error})
+        #            break
+        #   ⑤ turn/end 的 reason 改为 "error" if error else "completed"（见文件末尾 TODO(K)）
+
         # ---- 组装请求：模型历史是日志的投影，不是你手里攒的列表 ----
         request = GenerateOptions(
             model=agent.model,
@@ -131,6 +143,15 @@ async def run_turn(agent: Agent) -> None:
         # had_tool_calls = len(tool_calls) > 0
         # if not had_tool_calls:
         #     break
+
+        # TODO(K)：最大 step 上限（防跑飞；agent.max_steps 由构造参数传入）——
+        #   ① while 循环前初始化：truncated = False
+        #   ② 此处（判定要继续之后）：
+        #        if agent.max_steps is not None and step >= agent.max_steps:
+        #            truncated = True
+        #            break
+        #   ③ turn/end 的 reason 最终形态（合并 TODO(J)⑤）：
+        #        "error" if error else ("max-steps" if truncated else "completed")
 
     # TODO(10)：关轮：session.append("turn/end", {"turn": turn, "reason": "completed"})
     session.append("turn/end", {"turn": turn, "reason": "completed"})

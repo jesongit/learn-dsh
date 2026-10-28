@@ -14,7 +14,7 @@ import asyncio
 from pagent.adapter import LlmService
 from pagent.agent import Agent
 from pagent.loop import run_loop
-from pagent.mock import MockAdapter, text_response
+from pagent.mock import MockAdapter, text_response, tool_call_response
 from pagent.session import Session
 from pagent.tools import ToolService
 from pagent.types import Message, TextBlock
@@ -194,3 +194,59 @@ def test_queued_messages_chain_into_consecutive_turns():
         Message(role="assistant", content=[TextBlock(text="第一问的回答")]),
         Message(role="user", content=[TextBlock(text="问题二")]),
     ]
+
+
+# ── 场景 14：模型错误以 reason=error 结束 turn ──────────────────────────────
+
+def test_model_error_ends_turn_with_reason_error():
+    """harness spec #14：adapter 抛异常 → 落 error 事件 → turn/end(reason=error)。
+
+    注意与工具失败的区别：工具失败是「数据」（is_error 结果回模型，turn 继续）；
+    模型本身炸了是「turn 级失败」——本轮没法继续，以 error 收场。
+    """
+    def boom(options):
+        raise RuntimeError("模型炸了")
+
+    agent, session, adapter = _make_agent([boom])
+    agent.send([TextBlock(text="hi")])
+
+    asyncio.run(run_loop(agent))  # 异常必须在 loop 内部消化，不该传出来
+
+    types = [e.type for e in session.events]
+    skeleton = [t for t in types if t != "assistant/chunk"]
+    # 顺序：step/end 照常落（日志叙事完整），然后 error，最后带原因关轮
+    assert skeleton == [
+        "user/message", "turn/start", "step/start",
+        "step/end", "error", "turn/end",
+    ], f"事件骨架不符：{skeleton}"
+
+    error_event = session.events[types.index("error")]
+    assert error_event.data["turn"] == 1 and error_event.data["step"] == 1
+    assert "模型炸了" in error_event.data["message"]
+
+    assert session.events[types.index("turn/end")].data == {"turn": 1, "reason": "error"}
+    # turn 已死：没有第二次请求
+    assert len(adapter.requests) == 1
+
+
+# ── max_steps：跑飞的保护闸 ─────────────────────────────────────────────────
+
+def test_max_steps_truncates_runaway_loop():
+    """模型连调工具不停 → max_steps 到顶截断，reason=max-steps，多余脚本不消费。"""
+    agent, session, adapter = _make_agent(
+        [
+            tool_call_response("c1", "echo", {}),
+            tool_call_response("c2", "echo", {}),
+            tool_call_response("c3", "echo", {}),  # 第 3 条不该被消费
+        ]
+    )
+    agent.max_steps = 2
+    agent.send([TextBlock(text="跑起来")])
+
+    asyncio.run(run_loop(agent))
+
+    types = [e.type for e in session.events]
+    assert types.count("step/start") == 2
+    assert types.count("tool/call") == 2
+    assert session.events[types.index("turn/end")].data == {"turn": 1, "reason": "max-steps"}
+    assert len(adapter.requests) == 2

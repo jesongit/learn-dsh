@@ -21,6 +21,7 @@ class Agent:
         tools: ToolService,
         model: str = "default",
         system_prompt: str | None = None,
+        max_steps: int | None = None,  # 单个 turn 的 step 上限（防跑飞；None=不限）
     ) -> None:
         self.id = id
         self.session = session
@@ -36,20 +37,13 @@ class Agent:
         """排队一条用户输入；loop 在下个 turn 开头整批消费。"""
         self.inbox.enqueue(InboxMessage(content=content))
 
-    # TODO(E)：steer(content) —— 运行中插话：
-    #   self.running 为 True → self.inbox.steer(InboxMessage(content))
-    #   否则（空闲）→ 降级为 self.send(content)（插话变排队，等价于新输入）
     def steer(self, content: list[ContentBlock]) -> None:
+        """运行中插话走 steering 快速通道；空闲时降级为普通排队。"""
         if self.running:
             self.inbox.steer(InboxMessage(content))
         else:
             self.send(content)
 
-    # TODO(F)：inject(content) —— 上下文注入，不触发 turn：
-    #   self.session.append("context/message", {"content": content})
-    #   （投影时 session 会自动包上 <context> 信封——看 session.py 的
-    #    derive_messages，这个分支脚手架已经写好了）
-
-    def inject(self, content) -> None:
+    def inject(self, content: list[ContentBlock]) -> None:
+        """上下文注入：只落日志（投影时包 <context> 信封），不触发 turn。"""
         self.session.append("context/message", {"content": content})
-        
