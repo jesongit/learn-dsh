@@ -76,6 +76,10 @@ class EchoAdapter(LLMAdapter):
         ]
         末条用户文本仍是 "echo 你好"（倒序首个 user，跳过中间的 assistant）
         但末条消息带 ToolResultBlock → ① 落选 → 命中② 收尾
+
+    为什么倒序：投影是全量累积的——多轮对话后 messages 里有**多条**
+    user 消息（每轮输入都留在日志里），最新的在最后面；
+    倒序首个 = 最新输入；正序首个 = 最早那句旧指令，判断就错了。
     """
 
     async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
