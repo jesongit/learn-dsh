@@ -7,7 +7,9 @@ authors = [
     { name = "posase", email = "188380780@qq.com" }
 ]
 requires-python = ">=3.13"
-dependencies = []
+dependencies = [
+    "httpx>=0.28.1",
+]
 
 [dependency-groups]
 dev = [

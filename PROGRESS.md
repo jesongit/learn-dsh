@@ -7,7 +7,7 @@
 
 - **当前里程碑**：M2 · 第 1 节「真实适配器」——已交付，等用户实现
 - **最近更新**：2026-10-29
-- **下一步**：用户完成 [src/pagent/deepseek.py](src/pagent/deepseek.py) TODO(A)~(D)（三段式注释含 SSE 样例数据），目标 `uv run pytest -v` **16 passed**（当前基线 12+4）。讲解见 [notes/M2/01-真实适配器.md](notes/M2/01-真实适配器.md)。完成后进 M2-02「中断与转向归还」
+- **下一步**：用户完成 [src/pagent/deepseek.py](src/pagent/deepseek.py) TODO(A)~(D)（三段式注释含 SSE 样例数据），目标 `uv run pytest -v` **16 passed**（当前基线 12+4，M2 引入 httpx 依赖）。讲解见 [notes/M2/01-真实适配器.md](notes/M2/01-真实适配器.md)。完成后进 M2-02「中断与转向归还」
 - **运行环境**：deepseek-harness 已构建（可随时 `pnpm dsh web`）；PAgent uv 环境在**根目录**（12 passed 基线）；`.env` 已配置
 - **M1 战绩**：4 节全绿收官；loop.spec 场景复现 6 个；echo demo + 真实 API 冒烟通过
 
