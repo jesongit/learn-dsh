@@ -13,5 +13,6 @@ __pycache__/
 .ruff_cache/
 
 # 编辑器 / 系统
+.vscode/
 .DS_Store
 Thumbs.db

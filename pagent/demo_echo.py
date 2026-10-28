@@ -50,9 +50,37 @@ class EchoAdapter(LLMAdapter):
     辅助（伪代码）：
       末条用户文本 ← 逆序首个 role=="user" 消息的首个 TextBlock，缺省 ""
       有工具结果 ← options.messages[-1].content 中存在 ToolResultBlock
+
+    ── 输入长什么样（用户输入 "echo 你好" 后的两轮请求）──
+
+    Round 1 的 options.messages：
+        [
+            Message(role="user",
+                    content=[TextBlock(text="echo 你好")]),
+        ]
+        末条用户文本 = "echo 你好"（倒序首个 role=="user"）
+        末条消息无 ToolResultBlock
+        → 命中①：回一句话 + 调 echo 工具
+
+    Round 2 的 options.messages（工具执行完，loop 回填后再次请求）：
+        [
+            Message(role="user",
+                    content=[TextBlock(text="echo 你好")]),
+            Message(role="assistant",
+                    content=[ToolCallBlock(id="call-echo", name="echo",
+                                           arguments='{"text": "你好"}')]),
+            Message(role="user",                                  # ← 末条
+                    content=[ToolResultBlock(tool_call_id="call-echo",
+                                             content=[TextBlock(text="echo: 你好")],
+                                             is_error=False)]),
+        ]
+        末条用户文本仍是 "echo 你好"（倒序首个 user，跳过中间的 assistant）
+        但末条消息带 ToolResultBlock → ① 落选 → 命中② 收尾
     """
 
     async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
+        
+
         raise NotImplementedError("TODO(A)~(C)：按 docstring 的三条规则实现")
 
 
