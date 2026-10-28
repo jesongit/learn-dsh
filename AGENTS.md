@@ -207,6 +207,6 @@ git -C deepseek-harness log --oneline --reverse -- packages/agent-loop
 
 - Python ≥ 3.12，asyncio 优先，完整类型注解。
 - 依赖极简：M3 之前不引入 pydantic 等三方库；LLM 调用 M2 起用 httpx。**不使用任何现成 agent 框架**——那与学习目的对立。
-- 测试用 pytest，放 `pagent/tests/`；mock LLM 适配器是第一块测试基建。
+- 测试用 pytest，放 `tests/`；mock LLM 适配器是第一块测试基建。
 - 包结构按 Python 习惯组织，不照抄 harness 的包拆分。
 - 密钥不入库：API key 放根目录 `.env`（模板见 `.env.example`，已被 gitignore），代码通过环境变量读取，不硬编码。整个工作区只有一处 Python 环境（根 `.venv`，uv 管理），所有命令在根目录执行。

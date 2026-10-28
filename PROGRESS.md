@@ -7,7 +7,7 @@
 
 - **当前里程碑**：M1 · 第 4 节「错误路径与第一句话」——任务已布置，等用户编码 + 亲手点
 - **最近更新**：2026-10-29
-- **下一步**：用户完成 [loop.py](pagent/src/pagent/loop.py) TODO(J)(K)（目标 `uv run pytest -v` **12 passed**，当前基线 10+2）；然后亲手点三连——写 [demo_echo.py](pagent/demo_echo.py) 的 EchoAdapter（TODO A~C）→ `uv run python demo_echo.py` 对话 + max_steps=1 截断观察 → 配好 `.env` 跑 `uv run python demo_smoke.py` 冒烟。全过则 M1 关闭，进 M2。讲解见 [notes/M1/04-错误路径与第一句话.md](notes/M1/04-错误路径与第一句话.md)
+- **下一步**：用户完成 [loop.py](src/pagent/loop.py) TODO(J)(K)（目标 `uv run pytest -v` **12 passed**，当前基线 10+2）；然后亲手点三连——写 [demo_echo.py](demo_echo.py) 的 EchoAdapter（TODO A~C）→ `uv run python demo_echo.py` 对话 + max_steps=1 截断观察 → 配好 `.env` 跑 `uv run python demo_smoke.py` 冒烟。全过则 M1 关闭，进 M2。讲解见 [notes/M1/04-错误路径与第一句话.md](notes/M1/04-错误路径与第一句话.md)
 - **流水线**：下一节 M2-01「真实适配器」的教材概念部分已提前备好（[notes/M2/01-真实适配器.md](notes/M2/01-真实适配器.md)，作业区待补充）——M1-04 收尾时只需生成脚手架+补作业区+跑基线
 - **运行环境**：deepseek-harness 已构建；`pnpm dsh web` 后台运行中（127.0.0.1:3080，token 从启动日志取）；PAgent 用 uv 管理（uv 自带 CPython 3.13 + pytest 9.1.1）
 
@@ -38,7 +38,7 @@
 
 ## 遗留问题 / 待办
 
-- ~~用户：复制 `.env.example` 为 `.env` 并填入 DeepSeek API key~~ 已完成：`pagent/.env` 已配置（模板同目录 `.env.example`）
+- ~~用户：复制 `.env.example` 为 `.env` 并填入 DeepSeek API key~~ 已完成：`.env` 已配置（模板同目录 `.env.example`）
 - ~~待确认 uv 是否已安装~~ 已确认：uv 0.11.14，系统 Python 3.14.3（M1 用 `uv init` 创建 `pagent/` 时正式启用）
 
 ## 决策记录
