@@ -29,6 +29,7 @@ class Agent:
         self.tools = tools
         self.model = model
         self.system_prompt = system_prompt
+        self.max_steps = max_steps
         self.inbox = Inbox()
         # 是否正在 turn 中——loop 维护；steer() 靠它决定走哪条通道
         self.running = False
