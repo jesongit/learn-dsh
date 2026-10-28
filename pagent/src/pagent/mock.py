@@ -1,12 +1,17 @@
-"""MockAdapter：脚本化的假模型 —— M1-01 亲手写任务。
+"""MockAdapter：预注册响应的测试替身（stub）—— M1-01 任务，已实现。
 
 对照：deepseek-harness@53d1ef4a74 packages/agent-loop/tests/mock-adapter.ts。
 
 它和真实 adapter 实现**同一个接口**，唯一的区别是：
-响应不是算出来的，是照脚本念出来的。M1 全程它就是你的「模型」。
+响应不是算出来的，是按预注册序列回放的。M1 全程它就是你的「模型」。
 
 写完自测：uv run pytest tests/test_mock.py
-（当前应是 1 passed + 3 failed；全写完应是 4 passed）
+（收尾状态：5 passed）
+
+**两条注入路径**（防混淆）：
+- options 是**方法参数**——每次请求传入的「问题」，替身只记账不阅读；
+- script 是**构造函数注入的状态**——预录「答案」队列，跨调用持久，
+  被 pop(0) 逐条消耗。
 """
 
 from __future__ import annotations
@@ -31,13 +36,11 @@ from pagent.types import (
 
 
 def text_response(text: str) -> list[StreamChunk]:
-    """一段纯文本响应的 chunk 脚本 —— ✅ 已写好，当模板读。
+    """一段纯文本响应的 chunk 序列（fixture 工厂）—— 已实现，当模板读。
 
-    对照 mock-adapter.ts 的 textResponse()。chunk 流的固定节奏：
-    block-start → 逐字符 text-delta → block-end → usage → finish(stop)
-
-    逐字符吐 delta 是在模拟真实模型的流式输出；block-end 携带拼好的
-    完整块，消费方可以偷懒不自己组装。
+    chunk 流的固定节奏：block-start → 逐字符 text-delta → block-end
+    → usage → finish(stop)。逐字符吐 delta 是在模拟真实模型的流式输出；
+    block-end 携带拼好的完整块，消费方可以偷懒不自己组装。
     """
     chunks: list[StreamChunk] = [
         BlockStart(index=0, block_type="text"),
@@ -52,20 +55,20 @@ def text_response(text: str) -> list[StreamChunk]:
 def tool_call_response(
     call_id: str, name: str, args: dict, text: str | None = None
 ) -> list[StreamChunk]:
-    """一次工具调用的 chunk 脚本 —— TODO(1) 亲手实现。
+    """一次工具调用的 chunk 序列（fixture 工厂）—— 已实现 ✓。
 
-    对照 mock-adapter.ts 的 toolCallResponse()。要点：
+    行为规格（与测试断言一一对应）：
 
     - 若给了 text：先用 index=0 吐一个完整文本块
       （BlockStart → 一个 TextDelta → BlockEnd），然后 index 加一
     - 工具调用块（用当前的 index）：
       BlockStart(index, "tool-call")
       两个 ToolCallDelta —— arguments 的 JSON 串分两半吐（模拟流式参数），
-      第一个带 name，第二个 name=None
+      第一个带 name，第二个 name=None（身份只说一次）
       BlockEnd(index, ToolCallBlock(id=call_id, name=name,
                                     arguments=json.dumps(args)))
-    - 收尾 UsageChunk + Finish —— 注意 finish 原因是 "tool-calls"，
-      不是 "stop"（下一节 loop 就靠这个判断要不要继续转）
+    - 收尾 UsageChunk + Finish —— finish 原因是 "tool-calls"，
+      不是 "stop"（loop 就靠这个判断要不要继续转）
     """
     if text is None:
         index = 0
@@ -93,25 +96,22 @@ def tool_call_response(
 
 
 class MockAdapter(LLMAdapter):
-    """按脚本逐条响应的假模型，并记录收到的每个请求供测试断言。
+    """按预注册序列回放响应的测试替身，并记录收到的每个请求供测试断言。
 
-    TODO(2)：实现 stream()。三条规则：
+    stream() 的三条规则（已实现）：
       1. 先把 options 记进 self.requests（loop 发什么请求，测试要能查）
-      2. 从 self.script 取走下一条**响应**：list.pop(0) 得到一串 chunks；
-         队列空了就 raise RuntimeError("MockAdapter: 脚本耗尽")
+      2. 从 self.script 取走下一条**预录响应**：list.pop(0)；队列空了
+         就 raise RuntimeError("MockAdapter: 脚本耗尽")
       3. 依次 yield 这条响应里的每个 chunk
-
-    注意：LLMAdapter 接口要求 stream 是 async generator —— 把下面的
-    方法改成 async def，并逐个 yield，而不是 return 一个列表。
 
     延伸思考（不用实现，M2 会用）：harness 的脚本还支持 'hang' 条目——
     只吐半个块就挂起，直到被 abort。想想这个怎么写？
     """
 
     def __init__(self, script: list[list[StreamChunk]]) -> None:
-        """剧本 = **响应队列**：每个元素是一次完整响应（一串 chunks，
-        由 text_response / tool_call_response 生成）。loop 每发一次
-        请求，stream() 取走队首的一整条响应；三次请求消费三条响应。
+        """script = **预录响应队列**（fixture 序列）：每个元素是一次完整
+        响应（一串 chunks，由 text_response / tool_call_response 生成）。
+        loop 每发一次请求，stream() 取走队首的一整条；三次请求消费三条响应。
         """
         self.script = list(script)
         self.requests: list[GenerateOptions] = []
