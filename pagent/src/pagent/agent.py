@@ -39,8 +39,17 @@ class Agent:
     # TODO(E)：steer(content) —— 运行中插话：
     #   self.running 为 True → self.inbox.steer(InboxMessage(content))
     #   否则（空闲）→ 降级为 self.send(content)（插话变排队，等价于新输入）
+    def steer(self, content: list[ContentBlock]) -> None:
+        if self.running:
+            self.inbox.steer(InboxMessage(content))
+        else:
+            self.send(content)
 
     # TODO(F)：inject(content) —— 上下文注入，不触发 turn：
     #   self.session.append("context/message", {"content": content})
     #   （投影时 session 会自动包上 <context> 信封——看 session.py 的
     #    derive_messages，这个分支脚手架已经写好了）
+
+    def inject(self, content) -> None:
+        self.session.append("context/message", {"content": content})
+        

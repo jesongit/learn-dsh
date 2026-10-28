@@ -21,6 +21,7 @@ class InboxMessage:
 class Inbox:
     def __init__(self) -> None:
         self._queued: list[InboxMessage] = []
+        self._steering: list[InboxMessage] = []
         # TODO(A)：第二条队列 _steering（插话专用）
 
     @property
@@ -29,6 +30,10 @@ class Inbox:
 
     # TODO(B)：@property has_steering —— steering 队列非空？（对照 has_queued）
 
+    @property
+    def has_steering(self) -> bool:
+        return bool(self._steering)
+
     def enqueue(self, message: InboxMessage) -> None:
         self._queued.append(message)
 
@@ -36,6 +41,14 @@ class Inbox:
         """整批取走排队消息（turn 开头调用）。"""
         drained = self._queued.copy()
         self._queued.clear()
+        return drained
+
+    def steer(self, message: InboxMessage) -> None:
+        self._steering.append(message)
+
+    def drain_steering(self) -> list[InboxMessage]:
+        drained = self._steering.copy()
+        self._steering.clear()
         return drained
 
     # TODO(C)：steer(message) —— 插话进 _steering 队列（对照 enqueue）

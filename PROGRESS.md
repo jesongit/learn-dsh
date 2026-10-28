@@ -5,9 +5,9 @@
 
 ## 当前状态
 
-- **当前里程碑**：M1 · 第 3 节「双收件箱与转向」——任务已布置，等用户编码
-- **最近更新**：2026-10-28
-- **下一步**：用户完成 [inbox.py](pagent/src/pagent/inbox.py) TODO(A)~(D)、[agent.py](pagent/src/pagent/agent.py) TODO(E)~(F)、[loop.py](pagent/src/pagent/loop.py) TODO(G)~(I)（提示在注释里，讲解见 [notes/M1/03-双收件箱与转向.md](notes/M1/03-双收件箱与转向.md)）；目标 `uv run pytest -v` **10 passed**（当前基线 7 passed + 3 failed）
+- **当前里程碑**：M1 · 第 3 节「双收件箱与转向」✅ 完成——10 passed（用户首次零 bug 实现）
+- **最近更新**：2026-10-29
+- **下一步**：M1-04「错误路径与第一句话」——模型错误结束 turn（harness 场景 14，reason=error）、echo 假模型 demo（亲手点：第一次 `uv run` 让自己的 agent 说话）、M1 收尾（最大轮次截断亲手点 + 真实 API 冒烟测试，需 `.env` 里的 key）。完成后 M1 关闭，进 M2
 - **运行环境**：deepseek-harness 已构建；`pnpm dsh web` 后台运行中（127.0.0.1:3080，token 从启动日志取）；PAgent 用 uv 管理（uv 自带 CPython 3.13 + pytest 9.1.1）
 
 ## 里程碑进度
@@ -15,7 +15,7 @@
 | 里程碑 | 状态 | 备注 |
 |---|---|---|
 | M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
-| M1 最小 Agent Loop | 进行中 | 第 1 节「接缝先行」✅；第 2 节「主循环」✅ 6 passed；第 3 节「双收件箱与转向」进行中（基线 7+3，等用户实现 TODO A~I） |
+| M1 最小 Agent Loop | 进行中 | 第 1 节 ✅；第 2 节 ✅；第 3 节 ✅ 10 passed（零 bug）；剩 M1-04 错误路径 + 收尾冒烟 |
 | M2 真实 LLM + 流式 + 中断 | 未开始 | |
 | M3 工具系统 | 未开始 | |
 | M4 上下文管理 | 未开始 | |

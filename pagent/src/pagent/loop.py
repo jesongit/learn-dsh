@@ -41,6 +41,7 @@ async def run_turn(agent: Agent) -> None:
     # TODO(G)：标记运行中——agent.running = True（steer() 靠它分通道）；
     #          并在 run_turn 返回前（turn/end 之后）置回 False
     #raise NotImplementedError("M1-02：删掉本行，按 TODO(2)~(10) 实现 run_turn")
+    agent.running = True
 
     
     # TODO(2)：从 agent.inbox 整批领取排队的消息（drain_queued），
@@ -52,7 +53,7 @@ async def run_turn(agent: Agent) -> None:
     session.append("turn/start", {"turn": turn, "trigger": {"kind": "message"}})
 
     step = 0
-    had_tool_calls = False
+    #had_tool_calls = False
     while True:
         step += 1
 
@@ -114,6 +115,9 @@ async def run_turn(agent: Agent) -> None:
         #   逐条落日志：session.append("steering/message",
         #                            {"turn": turn, "content": m.content})
         #   steered = len(steered_msgs) > 0
+        steered_msgs = agent.inbox.drain_steering()
+        for msg in steered_msgs:
+            session.append("steering/message", {"turn": turn, "content": msg.content})
 
         # TODO(8)：step 收工：session.append("step/end", {"turn": turn, "step": step})
         session.append("step/end", {"turn": turn, "step": step})
@@ -122,9 +126,12 @@ async def run_turn(agent: Agent) -> None:
         #          没调工具（模型不欠工作了）就 break，否则继续下一个 step
         # TODO(I)：方向盘升级——插话也算「欠模型一次请求」：
         #          had_tool_calls or steered 任一为真就继续（steered 来自 TODO(H)）
-        had_tool_calls = len(tool_calls) > 0
-        if not had_tool_calls:
+        if len(tool_calls) == 0 and len(steered_msgs) == 0:
             break
+        # had_tool_calls = len(tool_calls) > 0
+        # if not had_tool_calls:
+        #     break
 
     # TODO(10)：关轮：session.append("turn/end", {"turn": turn, "reason": "completed"})
     session.append("turn/end", {"turn": turn, "reason": "completed"})
+    agent.running = False
