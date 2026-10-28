@@ -8,6 +8,7 @@
 - **当前里程碑**：M1 · 第 4 节「错误路径与第一句话」——任务已布置，等用户编码 + 亲手点
 - **最近更新**：2026-10-29
 - **下一步**：用户完成 [loop.py](pagent/src/pagent/loop.py) TODO(J)(K)（目标 `uv run pytest -v` **12 passed**，当前基线 10+2）；然后亲手点三连——写 [demo_echo.py](pagent/demo_echo.py) 的 EchoAdapter（TODO A~C）→ `uv run python demo_echo.py` 对话 + max_steps=1 截断观察 → 配好 `.env` 跑 `uv run python demo_smoke.py` 冒烟。全过则 M1 关闭，进 M2。讲解见 [notes/M1/04-错误路径与第一句话.md](notes/M1/04-错误路径与第一句话.md)
+- **流水线**：下一节 M2-01「真实适配器」的教材概念部分已提前备好（[notes/M2/01-真实适配器.md](notes/M2/01-真实适配器.md)，作业区待补充）——M1-04 收尾时只需生成脚手架+补作业区+跑基线
 - **运行环境**：deepseek-harness 已构建；`pnpm dsh web` 后台运行中（127.0.0.1:3080，token 从启动日志取）；PAgent 用 uv 管理（uv 自带 CPython 3.13 + pytest 9.1.1）
 
 ## 里程碑进度
@@ -64,3 +65,4 @@
 | 2026-10-28 | PAgent 场景定档：总结微博热搜。工具具体化为 `fetch_weibo_hot_search`（weibo.com/ajax/side/hotSearch 非官方 JSON 接口，M2 起真实调用）；v1 砍掉多模态/持久化/并行工具 | 用户设计三问 + 老师批改收窄 |
 | 2026-10-28 | M1-01 分工：types.py / adapter.py / 示例测试由 AI 生成并讲解；mock.py 的 tool_call_response 与 MockAdapter.stream、3 个测试由用户亲手写 | 教学模式约定（AI 生成示范 + TODO 骨架填空） |
 | 2026-10-28 | 讲解方式修正：从学习者已有的理解出发一句话先行（如「script 就是模拟 LLM 的 chunk 返回」），最小代码片段内嵌教材正文；删除独立演示文件 examples/mock_flow_demo.py；比喻只用软件工程术语 | 用户反馈：大段解释和大而全演示都难懂，表演比喻无效 |
+| 2026-10-29 | 流水线备课：始终提前备好下一节教材固定部分（概念/配图/出处，作业区标「待补充」）；上一节收尾时才生成脚手架、补作业区、跑基线 | 用户要求提高效率；M2-01 教材已提前备好 |
