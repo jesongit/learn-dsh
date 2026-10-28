@@ -91,7 +91,7 @@ notes/
 8. **待探索清单**——本节遇到但超主线的诱人内容，只记名字。
 9. **小结与遗留问题**。
 
-**图文并茂**：涉及流程、生命周期、架构的节必须配图；每节至少一图。选型约定——流程 / 时序 / 状态用 **Mermaid**（flowchart / sequenceDiagram / stateDiagram，GitHub 与 VS Code 预览可直接渲染，源码本身也可读作降级兜底）；简单局部示意用 ASCII 字符画；复杂全景架构可手写 SVG 放 `notes/assets/` 并用相对路径嵌入。配图必须紧邻其解释的文字，不给「孤图」；讲 loop 就画 loop 的流程图，讲工具往返就画时序图，讲会话版本演进就画状态图。**Mermaid 书写规范（防中文截断）**：节点标签只放关键词，解释写在正文；长标签用 `<br/>` 拆成短行；图首行加 `%%{init: {"fontFamily": "Microsoft YaHei"}}%%` 指定中文字体；裸节点声明必须独占一行。
+**图文并茂**：涉及流程、生命周期、架构的节必须配图；每节至少一图。选型约定——流程 / 时序 / 状态用 **Mermaid**（flowchart / sequenceDiagram / stateDiagram，GitHub 与 VS Code 预览可直接渲染，源码本身也可读作降级兜底）；简单局部示意用 ASCII 字符画；复杂全景架构可手写 SVG 放 `notes/assets/` 并用相对路径嵌入。配图必须紧邻其解释的文字，不给「孤图」；讲 loop 就画 loop 的流程图，讲工具往返就画时序图，讲会话版本演进就画状态图。**Mermaid 书写规范（防中文截断）**：节点标签只放关键词，解释写在正文；长标签用 `<br/>` 拆成短行；图首行加 `%%{init: {"fontFamily": "Microsoft YaHei"}}%%` 指定中文字体；裸节点声明必须独占一行。**结构归图、细节归表**：类型/字段的细节用图旁的速查表承载，不塞进节点标签。
 
 术语表：[notes/术语表.md](notes/术语表.md)，loop / turn / step / steering / compaction / harness…中英对照 + 一句话解释，可参考 harness 的 [docs/glossary.zh.md](deepseek-harness/docs/glossary.zh.md) 起步。
 
