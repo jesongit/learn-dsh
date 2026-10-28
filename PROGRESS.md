@@ -5,9 +5,9 @@
 
 ## 当前状态
 
-- **当前里程碑**：M1 · 第 2 节「主循环」✅ 完成——场景 1 全绿（6 passed）
+- **当前里程碑**：M1 · 第 3 节「双收件箱与转向」——任务已布置，等用户编码
 - **最近更新**：2026-10-28
-- **下一步**：M1-03「双收件箱与转向」——inbox 增设 steering 队列、`agent.steer()`、loop 在 step 之间消费插话（`steering/message` + 信封投影）、连续排队消息链接多个 turn、`inject()` 上下文注入；pytest 复现 harness 场景 5/6/7/12
+- **下一步**：用户完成 [inbox.py](pagent/src/pagent/inbox.py) TODO(A)~(D)、[agent.py](pagent/src/pagent/agent.py) TODO(E)~(F)、[loop.py](pagent/src/pagent/loop.py) TODO(G)~(I)（提示在注释里，讲解见 [notes/M1/03-双收件箱与转向.md](notes/M1/03-双收件箱与转向.md)）；目标 `uv run pytest -v` **10 passed**（当前基线 7 passed + 3 failed）
 - **运行环境**：deepseek-harness 已构建；`pnpm dsh web` 后台运行中（127.0.0.1:3080，token 从启动日志取）；PAgent 用 uv 管理（uv 自带 CPython 3.13 + pytest 9.1.1）
 
 ## 里程碑进度
@@ -15,7 +15,7 @@
 | 里程碑 | 状态 | 备注 |
 |---|---|---|
 | M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
-| M1 最小 Agent Loop | 进行中 | 第 1 节「接缝先行」✅；第 2 节「主循环」✅ 6 passed；下一节 M1-03 双收件箱与转向 |
+| M1 最小 Agent Loop | 进行中 | 第 1 节「接缝先行」✅；第 2 节「主循环」✅ 6 passed；第 3 节「双收件箱与转向」进行中（基线 7+3，等用户实现 TODO A~I） |
 | M2 真实 LLM + 流式 + 中断 | 未开始 | |
 | M3 工具系统 | 未开始 | |
 | M4 上下文管理 | 未开始 | |

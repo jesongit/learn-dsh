@@ -17,7 +17,7 @@
 from __future__ import annotations
 
 import json
-from collections.abc import AsyncIterator
+from collections.abc import AsyncIterator, Callable
 
 from pagent.adapter import LLMAdapter
 from pagent.types import (
@@ -108,10 +108,15 @@ class MockAdapter(LLMAdapter):
     只吐半个块就挂起，直到被 abort。想想这个怎么写？
     """
 
-    def __init__(self, script: list[list[StreamChunk]]) -> None:
+    def __init__(
+        self,
+        script: list[list[StreamChunk] | Callable[[GenerateOptions], list[StreamChunk]]],
+    ) -> None:
         """script = **预录响应队列**（fixture 序列）：每个元素是一次完整
-        响应（一串 chunks，由 text_response / tool_call_response 生成）。
-        loop 每发一次请求，stream() 取走队首的一整条；三次请求消费三条响应。
+        响应（一串 chunks，由 text_response / tool_call_response 生成），
+        或者一个**函数条目** `(options) -> chunks`——按请求现场算响应，
+        常用于在流式期间制造副作用（如模拟用户插话，见 test_steering_*）。
+        loop 每发一次请求，stream() 取走队首的一条；三次请求消费三条响应。
         """
         self.script = list(script)
         self.requests: list[GenerateOptions] = []
@@ -120,5 +125,7 @@ class MockAdapter(LLMAdapter):
         self.requests.append(options)
         if not self.script:
             raise RuntimeError("MockAdapter: 脚本耗尽")
-        for chunk in self.script.pop(0):
+        entry = self.script.pop(0)
+        chunks = entry(options) if callable(entry) else entry
+        for chunk in chunks:
             yield chunk

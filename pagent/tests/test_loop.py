@@ -20,7 +20,7 @@ from pagent.tools import ToolService
 from pagent.types import Message, TextBlock
 
 
-def _make_agent(script: list[list]) -> tuple[Agent, Session, MockAdapter]:
+def _make_agent(script: list) -> tuple[Agent, Session, MockAdapter]:
     """排戏助手：拼一个 mock 模型的 agent，返回 (agent, session, adapter)。"""
     session = Session("test-session")
     llm = LlmService()
@@ -86,3 +86,111 @@ def test_simple_turn_ordered_events():
     sent = adapter.requests[0]
     assert sent.model == "mock"
     assert sent.messages == [Message(role="user", content=[TextBlock(text="hi")])]
+
+
+def _all_text(messages: list[Message]) -> str:
+    """把一组消息里的所有 TextBlock 拼成一个字符串（断言辅助）。"""
+    return "".join(
+        b.text for m in messages for b in m.content if isinstance(b, TextBlock)
+    )
+
+
+# ── 场景 5：运行中插话（steering），继续当前 turn ────────────────────────────
+
+def test_steering_between_steps_continues_turn():
+    """harness spec #5：step 之间收到插话 → 落 steering/message → 继续本 turn。"""
+    # 排戏：第一条响应是「函数条目」——模型流式返回期间，模拟用户插话。
+    # agent 用闭包晚绑定：函数在流式时才被调用，那时 agent 已存在。
+    def steer_during_first_response(options):
+        agent.steer([TextBlock(text="只要前 3 条")])
+        return text_response("先看看热搜")
+
+    agent, session, adapter = _make_agent(
+        [steer_during_first_response, text_response("好的，只看前 3 条")]
+    )
+    agent.send([TextBlock(text="总结热搜")])
+
+    asyncio.run(run_loop(agent))
+
+    types = [e.type for e in session.events]
+
+    # 插话没有开新 turn：仍然只有一个 turn，但有两个 step
+    assert types.count("turn/start") == 1
+    assert types.count("step/start") == 2
+
+    # 插话以 steering/message 落日志，位置在 step1/end 之前（harness 顺序：
+    # 先排插话 → 再记 step/end → 最后方向盘决策）
+    assert types.count("steering/message") == 1
+    assert types.index("steering/message") < types.index("step/end")
+
+    # 第二次请求里模型看到了插话（带 <steering> 信封的投影）
+    assert "只要前 3 条" in _all_text(adapter.requests[1].messages)
+    assert "<steering>" in _all_text(adapter.requests[1].messages)
+
+
+# ── 场景 6：空闲时 steer 等价于 send ────────────────────────────────────────
+
+def test_steer_while_idle_behaves_like_send():
+    """harness spec #6：没有 turn 在跑，steer() 降级为 send（排队开新轮）。"""
+    agent, session, adapter = _make_agent([text_response("你好")])
+
+    agent.steer([TextBlock(text="hi")])  # 此时 agent.running=False
+    asyncio.run(run_loop(agent))
+
+    types = [e.type for e in session.events]
+    # 走的是排队通道：user/message 开路、正常一个 turn，而不是 steering/message
+    assert types[0] == "user/message"
+    assert types.count("turn/start") == 1
+    assert types.count("steering/message") == 0
+
+
+# ── 场景 7：inject() 注入上下文，不触发 turn ─────────────────────────────────
+
+def test_inject_adds_context_without_turn():
+    """harness spec #7：注入的上下文落日志、对下次请求可见，但不开启 turn。"""
+    agent, session, adapter = _make_agent([text_response("收到")])
+
+    agent.inject([TextBlock(text="背景资料：昨日热搜数据")])
+    agent.send([TextBlock(text="总结热搜")])
+    asyncio.run(run_loop(agent))
+
+    types = [e.type for e in session.events]
+    # 注入落了日志（context/message），但没有为它开 turn
+    assert types.count("context/message") == 1
+    assert types.index("context/message") < types.index("user/message")
+    assert types.count("turn/start") == 1
+
+    # 模型在请求里看到带 <context> 信封的注入 + 正常用户消息
+    assert "背景资料" in _all_text(adapter.requests[0].messages)
+    assert "<context>" in _all_text(adapter.requests[0].messages)
+    assert "总结热搜" in _all_text(adapter.requests[0].messages)
+
+
+# ── 场景 12：连续排队消息链接成连续 turn ────────────────────────────────────
+
+def test_queued_messages_chain_into_consecutive_turns():
+    """harness spec #12：第二条消息在 turn1 运行期间到达 → 排队 → 链接成 turn2。"""
+    # 排戏：第一条响应期间，模拟用户趁 agent 干活又发了一条
+    def send_second_during_first(options):
+        agent.send([TextBlock(text="问题二")])
+        return text_response("第一问的回答")
+
+    agent, session, adapter = _make_agent(
+        [send_second_during_first, text_response("第二问的回答")]
+    )
+    agent.send([TextBlock(text="问题一")])
+
+    asyncio.run(run_loop(agent))
+
+    # 两个 turn，编号 1、2
+    starts = [e for e in session.events if e.type == "turn/start"]
+    assert [e.data["turn"] for e in starts] == [1, 2]
+    assert len(adapter.requests) == 2
+
+    # 第二次请求 = turn1 完整历史 + 问题二（投影跨 turn 累积——LLM 无状态，
+    # 「记得上一问」全靠投影全量）
+    assert adapter.requests[1].messages == [
+        Message(role="user", content=[TextBlock(text="问题一")]),
+        Message(role="assistant", content=[TextBlock(text="第一问的回答")]),
+        Message(role="user", content=[TextBlock(text="问题二")]),
+    ]

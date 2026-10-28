@@ -29,7 +29,18 @@ class Agent:
         self.model = model
         self.system_prompt = system_prompt
         self.inbox = Inbox()
+        # 是否正在 turn 中——loop 维护；steer() 靠它决定走哪条通道
+        self.running = False
 
     def send(self, content: list[ContentBlock]) -> None:
         """排队一条用户输入；loop 在下个 turn 开头整批消费。"""
         self.inbox.enqueue(InboxMessage(content=content))
+
+    # TODO(E)：steer(content) —— 运行中插话：
+    #   self.running 为 True → self.inbox.steer(InboxMessage(content))
+    #   否则（空闲）→ 降级为 self.send(content)（插话变排队，等价于新输入）
+
+    # TODO(F)：inject(content) —— 上下文注入，不触发 turn：
+    #   self.session.append("context/message", {"content": content})
+    #   （投影时 session 会自动包上 <context> 信封——看 session.py 的
+    #    derive_messages，这个分支脚手架已经写好了）
