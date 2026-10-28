@@ -21,6 +21,7 @@ from pagent.types import (
     Message,
     StreamChunk,
     TextBlock,
+    TextDelta,
     TokenUsage,
     ToolCallBlock,
     ToolCallDelta,
