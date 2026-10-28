@@ -59,3 +59,4 @@
 | 2026-10-28 | M1-01 测试断言由 AI 参考实现补全（用户明确要求）；实现为用户亲手写 | 例外一次：M1-02/03 的场景测试仍须用户亲手写 |
 | 2026-10-28 | PAgent 场景定档：总结微博热搜。工具具体化为 `fetch_weibo_hot_search`（weibo.com/ajax/side/hotSearch 非官方 JSON 接口，M2 起真实调用）；v1 砍掉多模态/持久化/并行工具 | 用户设计三问 + 老师批改收窄 |
 | 2026-10-28 | M1-01 分工：types.py / adapter.py / 示例测试由 AI 生成并讲解；mock.py 的 tool_call_response 与 MockAdapter.stream、3 个测试由用户亲手写 | 教学模式约定（AI 生成示范 + TODO 骨架填空） |
+| 2026-10-28 | 讲解方式修正：从学习者已有的理解出发一句话先行（如「script 就是模拟 LLM 的 chunk 返回」），最小代码片段内嵌教材正文；删除独立演示文件 examples/mock_flow_demo.py；比喻只用软件工程术语 | 用户反馈：大段解释和大而全演示都难懂，表演比喻无效 |
