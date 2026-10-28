@@ -36,32 +36,20 @@ from pagent.mock import text_response, tool_call_response
 
 
 class EchoAdapter(LLMAdapter):
-    """规则式假模型：看消息末尾长什么样，按三条规则现场算响应。
+    """规则式假模型：看消息末尾形态选规则（对照 mock-llm.ts）。
 
-    对照：deepseek-harness@53d1ef4a74 examples/echo-agent/src/mock-llm.ts。
-    与 MockAdapter 的区别：不消费预录队列，而是 if 规则——输入什么，
-    返回什么由规则决定（所以它能对任意输入做出"合理"反应）。
+    TODO(A)~(C)：按序判断，命中即 yield 对应响应后返回——
+      ① 末条用户文本以 "echo " 开头 且 末条消息无 tool-result：
+         text_response("让我 echo 一下。") + tool_call_response("call-echo", "echo", {"text": 去前缀文本})
+         （两个列表相加后逐 chunk yield）
+      ② 末条消息 content 含 ToolResultBlock：
+         text_response("The echo tool has spoken.")
+      ③ 其他：
+         text_response(f'你说："{文本}"。试试 echo <内容>')
 
-    TODO(A)：实现 stream()，三条规则（自上而下判断）：
-
-      规则① 「echo 工具往返」：最后一条**用户**文本以 "echo " 开头，
-              且消息末尾还没有 tool-result ——
-              先 yield text_response("让我 echo 一下。") 的全部 chunk，
-              再接着 yield tool_call_response("call-echo", "echo",
-                                            {"text": 用户文本去掉前缀 "echo "}) 的全部 chunk
-              （两个助手可以列表相加；finish 是 tool-calls，来自第二个函数）
-      规则② 「工具结果已回填」：最后一条消息的 content 里有 ToolResultBlock ——
-              yield text_response("The echo tool has spoken.") 的全部 chunk
-      规则③ 「普通聊天」：其他情况 ——
-              yield text_response(f'你说："{最后一条用户文本}"。试试 echo <内容>') 的全部 chunk
-
-    取「最后一条用户文本」的提示：
-        last_user_text = 逆序找 options.messages 里 role=="user" 的消息，
-        取其 content 里第一个 TextBlock 的 text；找不到就是 ""
-    判断「末尾有工具结果」的提示：
-        options.messages[-1].content 里有 ToolResultBlock 实例
-
-    三个规则返回的响应都直接 yield 出去（`for chunk in ...: yield chunk`）。
+    辅助（伪代码）：
+      末条用户文本 ← 逆序首个 role=="user" 消息的首个 TextBlock，缺省 ""
+      有工具结果 ← options.messages[-1].content 中存在 ToolResultBlock
     """
 
     async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
