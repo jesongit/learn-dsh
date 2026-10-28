@@ -36,16 +36,27 @@ from pagent.mock import text_response, tool_call_response
 
 
 class EchoAdapter(LLMAdapter):
-    """规则式假模型：看消息末尾形态选规则（对照 mock-llm.ts）。
+    """规则式假模型：替模型回答——按「对话进行到哪一步」选规则。
 
-    TODO(A)~(C)：按序判断，命中即 yield 对应响应后返回——
-      ① 末条用户文本以 "echo " 开头 且 末条消息无 tool-result：
-         text_response("让我 echo 一下。") + tool_call_response("call-echo", "echo", {"text": 去前缀文本})
-         （两个列表相加后逐 chunk yield）
-      ② 末条消息 content 含 ToolResultBlock：
-         text_response("The echo tool has spoken.")
-      ③ 其他：
-         text_response(f'你说："{文本}"。试试 echo <内容>')
+    对话状态机（按序判断，命中即 yield 对应响应后返回）——
+
+    状态① 「用户刚下了 echo 指令，tools 还没执行过」
+        获取用户最新输入，以 "echo " 开头，且本轮尚未执行过 tools
+        （判断：最新用户文本以 "echo " 开头，且末条消息无 ToolResultBlock
+          ——末条消息还是用户的话，说明工具结果从没回来过）
+        → 替模型走流程：先说 "让我 echo 一下."，
+          再发 tool_call_response("call-echo", "echo", {"text": 去前缀文本})
+          ——「模型想调工具」= 在响应里放 ToolCallBlock，loop 会替它执行
+
+    状态② 「tools 已执行完，结果刚回填」
+        判断：末条消息 content 里是 ToolResultBlock
+          （工具结果由 loop 回填，投影后永远排在消息末尾——M1-02 投影规则）
+        → 替模型总结收尾："The echo tool has spoken."
+          （不再调工具 → finish=stop → 方向盘判停，turn 结束）
+
+    状态③ 「普通聊天，没有 echo 指令」
+        判断：以上都不满足
+        → 正常接话：text_response(f'你说："{文本}"。试试 echo <内容>')
 
     辅助（伪代码）：
       末条用户文本 ← 逆序首个 role=="user" 消息的首个 TextBlock，缺省 ""
@@ -83,9 +94,11 @@ class EchoAdapter(LLMAdapter):
     """
 
     async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
-        
+        for msg in reversed(options.messages):
+            
+            pass
 
-        raise NotImplementedError("TODO(A)~(C)：按 docstring 的三条规则实现")
+        # raise NotImplementedError("TODO(A)~(C)：按 docstring 的三条规则实现")
 
 
 class TerminalUI(LLMAdapter):
