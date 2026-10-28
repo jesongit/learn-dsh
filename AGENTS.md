@@ -101,7 +101,7 @@ notes/
 
 术语表：[notes/术语表.md](notes/术语表.md)，loop / turn / step / steering / compaction / harness…中英对照 + 一句话解释，可参考 harness 的 [docs/glossary.zh.md](deepseek-harness/docs/glossary.zh.md) 起步。
 
-**PAgent 每节收尾做一次 git commit**（如 `M1-03: 工具结果回填`），让 pagent 自己的提交历史成为第二本教材——与我们读 harness 历史的方式互为镜像，也提供随时回滚的安全网。
+**PAgent 每节固定两个锚点提交并打 tag**：「交付」（教材+脚手架+基线）与「完成」（全绿+实录），tag 命名 `m<里程碑>-<节>-交付/完成`（如 `m1-02-完成`）。提交历史是第二本教材，tag 是重复学习的还原点：重做某节用 `git checkout m1-02-交付`（代码回到当时的脚手架，勿忘先安顿当前改动），结束 `git checkout main` 回来；对照自己前后两版实现用 `git diff m1-02-交付 m1-02-完成`。
 
 **节的大小按内容定，不走极端**：一节 = 一个完整可消化的学习单元，以「能独立收尾出可运行状态」为边界。紧邻的小概念可合并成一节（避免碎），庞大的概念可拆成多节（避免噎）。经验参考：一次学习 session 能完整收尾一节；同类内容连续多节时可适当加快节奏。
 
