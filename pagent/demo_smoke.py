@@ -23,6 +23,7 @@ from pagent.types import (
     BlockStart,
     Finish,
     GenerateOptions,
+    Message,
     StreamChunk,
     TextBlock,
     TextDelta,
