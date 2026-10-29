@@ -124,7 +124,18 @@ def index() -> HTMLResponse:
 # 端点本身用普通 def 即可（返回的 StreamingResponse 里有 async generator）。
 @app.get("/events")
 def events(request: Request):
-    raise NotImplementedError("TODO(A)")
+    async def gen():
+        seq = int(request.query_params.get("seq", 0))
+        while True:
+            if await request.is_disconnected():
+                break
+            events = agent.session.events
+            for e in events[seq:]:
+                yield f"data: {json.dumps(serialize(e), ensure_ascii=False)}\n\n"
+            seq = len(events)
+            await asyncio.sleep(0.1)
+    return StreamingResponse(gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
+    # raise NotImplementedError("TODO(A)")
 
 
 # ── 内嵌页面：官方聊天风格的极简版（HTML/CSS/JS 单字符串，无构建工具）────

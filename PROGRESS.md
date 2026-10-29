@@ -7,7 +7,7 @@
 
 - **当前里程碑**：M2 · 第 4 节「事件日志的脸面：Web UI」——已交付（M2 收官验收载体），等用户实现
 - **最近更新**：2026-10-29
-- **下一步**：用户完成 [demos/web.py](demos/web.py) TODO(A)（`GET /events` SSE 端点——fastapi 核心一课，伪代码在注释里），`uv run pytest -v` **19 passed 不回归**，然后 `uv run python demos/web.py` 浏览器亲手点（打字机流式 / 停止 / 插话）。全过则 **M2 关闭**，进 M3-01。讲解见 [notes/M2/04-事件日志的脸面Web-UI.md](notes/M2/04-事件日志的脸面Web-UI.md)
+- **下一步**：用户完成 [demos/web.py](demos/web.py) TODO(A)（`GET /events` SSE 端点——fastapi 核心一课，伪代码在注释里），`uv run pytest -v` **19 passed 不回归**，然后 `uv run python -m demos.web` 浏览器亲手点（打字机流式 / 停止 / 插话）。全过则 **M2 关闭**，进 M3-01。讲解见 [notes/M2/04-事件日志的脸面Web-UI.md](notes/M2/04-事件日志的脸面Web-UI.md)
 - **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（19 passed）；`.env` 已配置；依赖新增 httpx / fastapi / uvicorn
 - **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（16 passed）；`.env` 已配置
 

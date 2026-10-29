@@ -26,7 +26,7 @@ D:\code\PAgent\
 └── deepseek-harness/  # 参考仓库：只读。绝不修改、不提交、不切换分支/checkout
 ```
 
-所有命令都在**根目录**执行：`uv run pytest` / `uv run python demos/echo.py`。
+所有命令都在**根目录**执行：`uv run pytest` / `uv run python -m demos.echo`。
 
 ## AI 助手工作流程（记忆机制）
 
