@@ -71,6 +71,19 @@ REGISTRY: dict[str, ToolDef] = {}
 #   该模型 .model_json_schema() 的 properties["limit"]
 #   == {"type": "integer", "default": 10}
 
+
+def model_from_fn(fn: Callable) -> type[BaseModel]:
+    fields: dict[str, tuple] = {}
+    for name, param in inspect.signature(fn).parameters.items():
+        annotation = param.annotation
+        if annotation is inspect.Parameter.empty:
+            raise TypeError(f"函数名: {fn.__name__}, 参数名: {name} 缺少注解")
+        if param.default is inspect.Parameter.empty:
+            fields[name] = (annotation, ...)  # 这里的 ... 只是为了表示必填，None本身也有含义，所以用 ...
+        else:
+            fields[name] = (annotation, Field(default=param.default))
+    return create_model(fn.__name__, **fields)
+
 # TODO(Q)：@tool 装饰器 —— 装饰即登记
 # ①语义：包住带类型注解的函数，用 TODO(P) 生成说明书模型，组装
 #        ToolDef 存进 REGISTRY；返回原函数本身（它仍能被直接调用/单测）。
@@ -87,35 +100,13 @@ REGISTRY: dict[str, ToolDef] = {}
 #   @tool(description="抓取微博热搜榜")
 #   def fetch_weibo_hot_search(limit: int = 10) -> list[dict]: ...
 
-# ── 参考实现（暂存供学习：读懂后整段删除，对照上方 TODO 自己重写）────────
-def model_from_fn(fn: Callable) -> type[BaseModel]:
-    """签名 → pydantic 模型：注解即类型，默认值即 default，无默认即必填。"""
-    fields: dict[str, tuple] = {}
-    for name, param in inspect.signature(fn).parameters.items():
-        annotation = param.annotation
-        if annotation is inspect.Parameter.empty:  # 没写注解按 Any 兜底；v0 纪律是都写
-            annotation = Any
-        if param.default is inspect.Parameter.empty:
-            fields[name] = (annotation, ...)  # pydantic 的必填哨兵就是 Ellipsis 本尊
-        else:
-            fields[name] = (annotation, Field(default=param.default))
-    return create_model(fn.__name__, **fields)  # 运行时动态造一个模型类
-
 
 def tool(description: str):
-    """带参装饰器两层结构：tool(description) 先返回真正包住 fn 的 wrap。"""
-
     def wrap(fn: Callable):
+        name = fn.__name__
         model = model_from_fn(fn)
-        REGISTRY[fn.__name__] = ToolDef(
-            name=fn.__name__,
-            description=description,
-            parameters=model.model_json_schema(),  # 说明书：从模型导出（wire 形态）
-            fn=fn,
-            model=model,  # 有代码 → 宿主侧校验
-        )
-        return fn  # 原函数原样返回——它仍能被直接调用和单测
-
+        REGISTRY[name] = ToolDef(name, description, model.model_json_schema(), fn, model)
+        return fn
     return wrap
 
 
@@ -149,48 +140,32 @@ class ToolService:
     #   ToolOutcome(call_id, is_error=True,
     #               content=[TextBlock("参数校验失败：limit … integer …")])
 
-    # ── 参考实现（暂存供学习：读懂后删除，对照上方 TODO(R) 重写）─────────────
-
     def schemas(self) -> list[ToolSchema]:
         """唯一注册表的全部说明书，随请求发给模型。"""
         return [
-            ToolSchema(name=d.name, description=d.description, parameters=d.parameters)
-            for d in REGISTRY.values()
+            ToolSchema(name=tool.name, description=tool.description, parameters=tool.parameters)
+            for tool in REGISTRY.values()
         ]
 
-    async def execute(self, call_id: str, name: str, arguments: dict) -> ToolOutcome:
-        d = REGISTRY.get(name)
-        if d is None:
-            return ToolOutcome(
-                call_id=call_id,
-                content=[TextBlock(text=f"未知工具：{name}")],
-                is_error=True,
-            )
-
-        # 校验跟代码走：model 非 None（代码派生契约）才在宿主侧校验；
-        # ValidationError 的消息自带字段级细节——模型一次改对
-        if d.model is not None:
+    async def execute(self, call_id: str, name: str, params: dict) -> ToolOutcome:
+        tool = REGISTRY.get(name)
+        if tool is None:
+            return ToolOutcome(call_id, [TextBlock(f"未知工具 {name}")], True)
+        if tool.model is not None:
             try:
-                validated = d.model.model_validate(arguments)
+                params = tool.model.model_validate(params).model_dump()
             except ValidationError as e:
                 return ToolOutcome(
-                    call_id=call_id,
-                    content=[TextBlock(text=f"参数校验失败：{e}")],
-                    is_error=True,
+                    call_id=call_id, content=[TextBlock(text=f"参数校验失败 {e}")], is_error=True
                 )
-            # 用校验后的值调用：可选字段按默认值补全；多余键被忽略
-            # （与 harness validateArgs 的 extra-keys-allowed 语义对齐）
-            arguments = validated.model_dump()
 
         try:
-            result = d.fn(**arguments)
+            result = tool.fn(**params)
             if inspect.isawaitable(result):
                 result = await result
-        except Exception as e:  # 工具炸了不炸 loop：错误也回给模型，让它自行调整
+        except Exception as e:
             return ToolOutcome(
-                call_id=call_id,
-                content=[TextBlock(text=f"工具执行出错：{e}")],
-                is_error=True,
+                call_id=call_id, content=[TextBlock(text=f"工具执行出错 {e}")], is_error=True
             )
         text = result if isinstance(result, str) else json.dumps(result, ensure_ascii=False)
         return ToolOutcome(call_id=call_id, content=[TextBlock(text=text)])

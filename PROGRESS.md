@@ -5,9 +5,10 @@
 
 ## 当前状态
 
-- **当前里程碑**：**M2 全部完成** ✅（4 节全绿收官）；M3 · 第 1 节「工具说明书自动生成」进行中——参考实现已暂存，等用户读懂后删除重写
+- **当前里程碑**：M3 · 第 1 节「工具说明书自动生成」**完成** ✅（重写 26 passed）；第 2 节「真实工具解剖：bash 与错误分层」已交付全套，等用户学习
 - **最近更新**：2026-10-30
-- **下一步**：用户读懂 [src/pagent/tools.py](src/pagent/tools.py) 参考实现（TODO(P)(Q)(R) 三段）→ 整段删除 → pytest 变红 → 对照 TODO 重写 → **25 passed 回到全绿** = 本节完成，喊 AI 拍②；M3-02 教材已备
+- **下一步**：用户学习 [notes/M3/02-真实工具解剖：bash与错误分层.md](notes/M3/02-真实工具解剖：bash与错误分层.md)，亲手实现 `render_result` 结果整形 + `bash_run` 真工具（TODO 骨架在 `src/pagent/tool_bash.py` 与 `tests/test_tool_bash.py`）；M3-03 教材已备
+- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（26 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic
 - **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（19 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
 
 ## 里程碑进度
@@ -17,7 +18,7 @@
 | M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
 | M1 最小 Agent Loop | ✅ 完成 | 4 节全绿；loop.spec 场景复现 6 个；echo demo + 冒烟通过 |
 | M2 真实 LLM + 流式 + 中断 | ✅ 完成 | 4 节全绿（19 passed）；终端流式/中断/插话 + Web UI 收官（send/steer/stop/复活全链路机械验证通过）；serialize() 讨论收敛为一行 asdict 边界 |
-| M3 工具系统 | 进行中 | 第 1 节已交付（脚手架+作业区+基线）；M3-02 教材已备 |
+| M3 工具系统 | 进行中 | 第 1 节 ✅（26 passed；@tool + pydantic 校验管线 + 单表统一）；第 2 节已交付（脚手架+作业区+基线）；M3-03 教材已备 |
 | M4 上下文管理 | 未开始 | |
 | M5 子代理 | 未开始 | |
 | M6 会话持久化 | 未开始 | |
@@ -41,6 +42,9 @@
 - **isinstance 是分派不是过滤**：认对象选转换方式 ≠ 决定给不给看；但同一行的「只留 text / 其余置 None」是字段级取舍——「取哪些=类型规则，取多少=字段取舍」两维度再次落地。（M2-04 讨论确认）
 - **asdict 递归白送、ClassVar 不入字段**：SessionEvent 本身是 dataclass，`json.dumps(asdict(e))` 一行转净全事件；ClassVar 属性照常可读，需要时边界手动补 `{"type": b.type, **asdict(b)}`。域模型不迁就序列化——判别字段属于 wire 模型（M3 pydantic）。（M2-04 讨论确认）
 - **排障先看服务端终端**：uvicorn 的访问日志与 traceback 全在 `uv run` 的控制台；浏览器 EventSource 静默重连会掩盖服务端崩溃（页面零报错 ≠ 服务端没炸）。端口占用 winerror 10048 = 上个实例还活着。（M2-04 实战）
+- **schema-from-code = 一份声明三个消费者**：开发者类型、模型说明书、边界校验全从一份声明派生。TS 是「声明 → 反推类型」（类型运行时蒸发，必须造运行时声明物），Python 是「注解 → 生成 schema」——方向相反，原理同一；harness 分三天补齐第三个消费者（ef45ca823a → 8b5a3ef730 手写权宜 → 36a30180b8 内建 validateArgs）。（M3-01 讨论确认）
+- **校验跟代码走**：`model=None` 的外来工具（MCP 形状）宿主侧不校验——谁有代码谁负责；两种来源构造后形态同一（parameters + model 可空）。注解只适用于「代码在我手里」的工具。（M3-01 讨论确认）
+- **接口签名由调用方决定**：实例方法漏 self、签名漂移、装饰器参数改名、判空分支里取判空变量的属性——重写的 bug 全集中在「边界与契约」，核心逻辑零错。（M3-01 实战）
 
 ## 遗留问题 / 待办
 
@@ -79,3 +83,4 @@
 | 2026-10-29 | session.py 的 append 上方登记「事件词汇表」（12 种调用形态 + ● 标记 dataclass 字段 + 不变式） | 用户提议；事件形态的唯一登记处，新增事件先登记再落笔；● 标记直接服务序列化边界 |
 | 2026-10-29 | Web SSE 边界删除 serialize()，收敛为 `json.dumps(asdict(e))` 一行 | 边界只做转换不做筛选（过滤归浏览器 JS）；词汇表不变式保证覆盖全部 12 种事件；原字段级裁剪无消费方 |
 | 2026-10-30 | M3-01 例外：TODO(P)(Q)(R) 参考实现由 AI 生成供学习，用户读懂后**删除重写** | 用户主动提出（pydantic 陌生）；沿 M1-01 例外先例；重写才是亲手写本体，测试四条已解锁全绿作验收线 |
+| 2026-10-30 | M3-01 单表统一：REGISTRY 唯一注册表，register() 收编为裸说明书入口（model=None），校验跟代码走 | 用户追问两表设计引出；形态统一于构造时刻，来源差异由 model 可空如实记录；对齐 harness 单 registry 事实 |
