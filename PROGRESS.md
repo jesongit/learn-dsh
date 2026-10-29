@@ -5,11 +5,10 @@
 
 ## 当前状态
 
-- **当前里程碑**：M2 · 第 1 节「真实适配器」——已交付，等用户实现
+- **当前里程碑**：M2 · 第 2 节「中断与挂起归还」——已交付，等用户实现
 - **最近更新**：2026-10-29
-- **下一步**：用户完成 [src/pagent/deepseek.py](src/pagent/deepseek.py) TODO(A)~(D)（三段式注释含 SSE 样例数据），目标 `uv run pytest -v` **16 passed**（当前基线 12+4，M2 引入 httpx 依赖）。讲解见 [notes/M2/01-真实适配器.md](notes/M2/01-真实适配器.md)。完成后进 M2-02「中断与转向归还」
-- **运行环境**：deepseek-harness 已构建（可随时 `pnpm dsh web`）；PAgent uv 环境在**根目录**（12 passed 基线）；`.env` 已配置
-- **M1 战绩**：4 节全绿收官；loop.spec 场景复现 6 个；echo demo + 真实 API 冒烟通过
+- **下一步**：用户完成 TODO(A)~(F)（[inbox.py](src/pagent/inbox.py) Future 闹钟、[agent.py](src/pagent/agent.py) start/abort、[loop.py](src/pagent/loop.py) 永续化+aborted 收场），目标 `uv run pytest -v` **19 passed**（当前基线 16+3，含 mock 'hang' 挂起条目与 abort 场景）。讲解见 [notes/M2/02-中断与挂起归还.md](notes/M2/02-中断与挂起归还.md)。完成后进 M2-03「真模型终端对话」
+- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（16 passed）；`.env` 已配置
 
 ## 里程碑进度
 
@@ -17,7 +16,7 @@
 |---|---|---|
 | M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
 | M1 最小 Agent Loop | ✅ 完成 | 4 节全绿；12 passed；loop.spec 场景复现 6 个（1/5/6/7/12/14）；echo demo + 冒烟通过 |
-| M2 真实 LLM + 流式 + 中断 | 进行中 | 第 1 节「真实适配器」已交付（教材+脚手架+测试），等用户实现 |
+| M2 真实 LLM + 流式 + 中断 | 进行中 | 第 1 节「真实适配器」✅ 16 passed（验收批改 3 必修已修）；第 2 节「中断与挂起归还」已交付 |
 | M3 工具系统 | 未开始 | |
 | M4 上下文管理 | 未开始 | |
 | M5 子代理 | 未开始 | |

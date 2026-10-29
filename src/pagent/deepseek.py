@@ -19,6 +19,7 @@ from pagent.types import (
     Finish,
     GenerateOptions,
     StreamChunk,
+    TextBlock,
     TextDelta,
     ToolCallDelta,
 )
@@ -32,6 +33,8 @@ _FINISH_MAP = {
     "length": "max-tokens",
 }
 
+_SSE_PREFIX = "data: "
+
 # ── ③ 样例数据：一条流式响应的 SSE 原文（6 行，空行分隔帧）──────────────
 SSE_SAMPLE = "\n".join(
     [
@@ -39,8 +42,9 @@ SSE_SAMPLE = "\n".join(
         "",
         'data: {"choices":[{"delta":{"content":"好"}}]}',
         "",
-        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1",'
-        '"function":{"name":"echo","arguments":"{\\"text\\": "}}]}}]}',
+        'data: {"choices":[{"delta":{"tool_calls":['
+        '{"index":0,"id":"call-1","function":{"name":"echo","arguments":"{\\"text\\": "}}'
+        ']}}]}',
         "",
         'data: {"choices":[{"delta":{"tool_calls":[{"index":0,'
         '"function":{"arguments":"\\"hi\\"}"}}]}}]}',
@@ -70,7 +74,17 @@ class DeepSeekAdapter(LLMAdapter):
     #   messages = [system?] + [{"role": m.role, "content": 拼接文本} for m in options.messages]
     #   返回 {"model": …, "messages": messages, "stream": True}
     def _build_body(self, options: GenerateOptions) -> dict:
-        raise NotImplementedError("TODO(A)")
+        messages = []
+        if options.system is not None:
+            messages.append({"role": "system", "content": options.system})
+        #print(messages)
+        for m in options.messages:
+            #print(m)
+            content = "".join([tb.text for tb in m.content if isinstance(tb, TextBlock)])
+            messages.append({"role": m.role, "content": content})
+        # print(messages)
+        return {"model": options.model, "messages": messages, "stream": True}
+        # raise NotImplementedError("TODO(A)")
 
     # ── TODO(B)：SSE 帧解析（纯函数，测试主力）───────────────────────
     # 语义：SSE 全文 → JSON 事件列表。
@@ -79,7 +93,14 @@ class DeepSeekAdapter(LLMAdapter):
     # 对照样例 SSE_SAMPLE：应产出 5 个 dict（[DONE] 不算）。
     @staticmethod
     def parse_sse(text: str) -> list[dict]:
-        raise NotImplementedError("TODO(B)")
+        res = []
+        for line in text.split("\n"):
+            if line == f"{_SSE_PREFIX}[DONE]":
+                break
+            elif line.startswith(_SSE_PREFIX):
+                res.append(json.loads(line.removeprefix(_SSE_PREFIX)))
+        return res
+        # raise NotImplementedError("TODO(B)")
 
     # ── TODO(C)：事件翻译 ────────────────────────────────────────────
     # 语义：一个 SSE JSON 事件 → 0..n 个 chunk。分支（按序）：
@@ -91,9 +112,22 @@ class DeepSeekAdapter(LLMAdapter):
     #                             （id/name 只首帧有，get 缺席即 None）
     #   finish_reason 非 None   → [Finish(reason=_FINISH_MAP[...])]
     #   都没有                  → []
+
     @staticmethod
     def translate_event(event: dict) -> list[StreamChunk]:
-        raise NotImplementedError("TODO(C)")
+        choices = event["choices"]
+        if choices == []:
+            return []
+        if "finish_reason" in choices[0]:
+            return [Finish(_FINISH_MAP[choices[0]["finish_reason"]])]
+        delta: dict = choices[0]["delta"]
+        if "content" in delta:
+            return [TextDelta(index=0, text=delta["content"])]
+        if "tool_calls" in delta:
+            return [ToolCallDelta(tc["index"], tc.get("id", ""), tc["function"].get("name", None), 
+                                  tc["function"].get("arguments", "")) for tc in delta["tool_calls"]]
+        return []
+        # raise NotImplementedError("TODO(C)")
 
     # ── TODO(D)：串装 ────────────────────────────────────────────────
     # 语义：httpx 流式 POST → 逐行剥壳 → 逐帧翻译 → 逐 chunk yield，[DONE] 停。
@@ -106,4 +140,18 @@ class DeepSeekAdapter(LLMAdapter):
     #         for chunk in self.translate_event(json.loads(payload)): yield chunk
     # （B 与 D 是同一套规则的两个世界：B 吃全文可测，D 吃增量真流——取舍 M2-02 再收）
     async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
-        raise NotImplementedError("TODO(D)")
+        async with httpx.AsyncClient(transport=self._transport) as client:
+            async with client.stream("POST", API_URL, 
+                                     headers={"Authorization": f"Bearer {self._api_key}", "Content-Type": "application/json"}, 
+                                     json=self._build_body(options)) as resp:
+                resp.raise_for_status()
+                async for line in resp.aiter_lines():
+                    #print(f"|{line}|", isinstance(line, str), line.startswith(_SSE_PREFIX))
+                    if line == f"{_SSE_PREFIX}[DONE]":
+                        return
+                    if line.startswith(_SSE_PREFIX):
+                        event = json.loads(line.removeprefix(_SSE_PREFIX))
+                        #print("event", event)
+                        for chunk in self.translate_event(event):
+                            yield chunk
+        #raise NotImplementedError("TODO(D)")

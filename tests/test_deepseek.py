@@ -73,6 +73,7 @@ def test_stream_end_to_end_without_network():
         return [chunk async for chunk in adapter.stream(options)]
 
     chunks = asyncio.run(run())
+    #print("chunks", chunks)
 
     # 请求侧：流式开关与消息形状（你的 _build_body 的产出）
     assert captured[0]["stream"] is True
