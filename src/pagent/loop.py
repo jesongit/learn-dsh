@@ -34,8 +34,37 @@ async def run_loop(agent: Agent) -> None:
     #     except asyncio.CancelledError: return      # 空闲时被 abort：无 turn 可收，下班
     #     try: await run_turn(agent)
     #     except asyncio.CancelledError: return      # turn 已在 run_turn 内收场(aborted)，任务到此为止
-    while agent.inbox.has_queued:
-        await run_turn(agent)
+    
+    # while agent.inbox.has_queued:
+    #     await run_turn(agent)
+    while True:
+        try:
+            await agent.inbox.wait_for_queued()
+            await run_turn(agent)
+        except asyncio.CancelledError:
+            return
+
+
+async def run_until_idle(agent: Agent, timeout: float = 10.0) -> None:
+    """测试助手：启动永续循环，跑完当前积压输入后自动停止。
+
+    run_loop 永续化后不再返回；旧式「排空即返回」的测试语义由本助手承接——
+    轮询到「inbox 空 且 无 turn 在跑」即视为空闲，收工取消任务。
+    """
+    task = asyncio.create_task(run_loop(agent))
+
+    async def wait_idle() -> None:
+        while agent.inbox.has_queued or agent.running:
+            await asyncio.sleep(0.01)
+
+    try:
+        await asyncio.wait_for(wait_idle(), timeout=timeout)
+    finally:
+        task.cancel()
+        try:
+            await task
+        except asyncio.CancelledError:
+            pass
 
 
 async def run_turn(agent: Agent) -> None:
@@ -134,10 +163,11 @@ async def run_turn(agent: Agent) -> None:
         #   （收场叙事照旧：排插话、step/end 照落；中止不是事故，不落 error 事件）
         #   reason 若 aborted → "aborted"（优先级：error > aborted > max-steps > completed）
         #   turn/end 与 agent.running = False 之后：raise   # 把取消抛回 run_loop 收尾
-
         except Exception as e:
             error = str(e)
             reason = "error"
+        except asyncio.CancelledError:
+            reason = "aborted"
 
         # TODO(H)：step 之间消费插话（对照 harness：先排插话、再记 step/end、
         #          最后做方向盘决策，顺序别乱）——
@@ -176,3 +206,5 @@ async def run_turn(agent: Agent) -> None:
     # TODO(10)：关轮：session.append("turn/end", {"turn": turn, "reason": "completed"})
     session.append("turn/end", {"turn": turn, "reason": reason})
     agent.running = False
+    if reason == "aborted":
+        raise asyncio.CancelledError

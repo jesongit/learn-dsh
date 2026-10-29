@@ -13,7 +13,7 @@ import asyncio
 
 from pagent.adapter import LlmService
 from pagent.agent import Agent
-from pagent.loop import run_loop
+from pagent.loop import run_until_idle
 from pagent.mock import MockAdapter, text_response, tool_call_response
 from pagent.session import Session
 from pagent.tools import ToolService
@@ -42,7 +42,7 @@ def test_simple_turn_ordered_events():
     agent, session, adapter = _make_agent([text_response("你好")])
     agent.send([TextBlock(text="hi")])
 
-    asyncio.run(run_loop(agent))
+    asyncio.run(run_until_idle(agent))
 
     types = [e.type for e in session.events]
 
@@ -110,7 +110,7 @@ def test_steering_between_steps_continues_turn():
     )
     agent.send([TextBlock(text="总结热搜")])
 
-    asyncio.run(run_loop(agent))
+    asyncio.run(run_until_idle(agent))
 
     types = [e.type for e in session.events]
 
@@ -135,7 +135,7 @@ def test_steer_while_idle_behaves_like_send():
     agent, session, adapter = _make_agent([text_response("你好")])
 
     agent.steer([TextBlock(text="hi")])  # 此时 agent.running=False
-    asyncio.run(run_loop(agent))
+    asyncio.run(run_until_idle(agent))
 
     types = [e.type for e in session.events]
     # 走的是排队通道：user/message 开路、正常一个 turn，而不是 steering/message
@@ -152,7 +152,7 @@ def test_inject_adds_context_without_turn():
 
     agent.inject([TextBlock(text="背景资料：昨日热搜数据")])
     agent.send([TextBlock(text="总结热搜")])
-    asyncio.run(run_loop(agent))
+    asyncio.run(run_until_idle(agent))
 
     types = [e.type for e in session.events]
     # 注入落了日志（context/message），但没有为它开 turn
@@ -180,7 +180,7 @@ def test_queued_messages_chain_into_consecutive_turns():
     )
     agent.send([TextBlock(text="问题一")])
 
-    asyncio.run(run_loop(agent))
+    asyncio.run(run_until_idle(agent))
 
     # 两个 turn，编号 1、2
     starts = [e for e in session.events if e.type == "turn/start"]
@@ -210,7 +210,7 @@ def test_model_error_ends_turn_with_reason_error():
     agent, session, adapter = _make_agent([boom])
     agent.send([TextBlock(text="hi")])
 
-    asyncio.run(run_loop(agent))  # 异常必须在 loop 内部消化，不该传出来
+    asyncio.run(run_until_idle(agent))  # 异常必须在 loop 内部消化，不该传出来
 
     types = [e.type for e in session.events]
     skeleton = [t for t in types if t != "assistant/chunk"]
@@ -243,7 +243,7 @@ def test_max_steps_truncates_runaway_loop():
     agent.max_steps = 2
     agent.send([TextBlock(text="跑起来")])
 
-    asyncio.run(run_loop(agent))
+    asyncio.run(run_until_idle(agent))
 
     types = [e.type for e in session.events]
     assert types.count("step/start") == 2

@@ -58,9 +58,16 @@ class Agent:
     # 注意：run_loop 在 pagent.loop，而 loop 顶层 import 了 Agent——这里用
     # 「函数内本地 import」打破循环（Python 惯用手法，注释讲明即可）。
     # def start(self) -> asyncio.Task: ...
+    def start(self) -> asyncio.Task:
+        from pagent.loop import run_loop
+        self._task = asyncio.create_task(run_loop(self))
+        return self._task
 
     # ── TODO(D)：abort —— 中断当前 turn ── M2-02 亲手写 ─────────────
     # 语义：对循环任务发 cancel 信号 → CancelledError 会在 run_turn 的
     #       某个 await 点炸出 → turn 以 reason=aborted 体面收场。
     # 伪代码：if self._task is not None: self._task.cancel()
     # def abort(self) -> None: ...
+    def abort(self) -> None:
+        if self._task is not None:
+            self._task.cancel()

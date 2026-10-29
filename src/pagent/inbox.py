@@ -37,6 +37,9 @@ class Inbox:
 
     def enqueue(self, message: InboxMessage) -> None:
         self._queued.append(message)
+        if self._wakeup is not None:
+            # 来活了，叫醒
+            self._wakeup.set_result(None)
 
     def steer(self, message: InboxMessage) -> None:
         self._steering.append(message)
@@ -62,6 +65,15 @@ class Inbox:
     #   try: await self._wakeup
     #   finally: self._wakeup = None                   # 醒来/被取消都要撤闹钟
     # async def wait_for_queued(self) -> None: ...
+
+    async def wait_for_queued(self) -> None:
+        if self.has_queued:
+            return
+        self._wakeup = asyncio.get_running_loop().create_future()
+        try:
+            await self._wakeup
+        finally:
+            self._wakeup = None
 
     # ── TODO(B)：enqueue 末尾加一行——敲钟 ──────────────────────────
     # 伪代码：if self._wakeup is not None: self._wakeup.set_result(None)
