@@ -5,9 +5,10 @@
 
 ## 当前状态
 
-- **当前里程碑**：M2 · 第 3 节「真模型终端对话」——已交付（M2 收官集成节），等用户实现 + 亲手点
+- **当前里程碑**：M2 · 第 4 节「事件日志的脸面：Web UI」——已交付（M2 收官验收载体），等用户实现
 - **最近更新**：2026-10-29
-- **下一步**：用户完成 [demo_echo.py](demo_echo.py) TODO(G)(H)（接线换 DeepSeekAdapter + /steer 命令；`uv run pytest -v` **19 passed 不回归**）+ 亲手点四连（流式真聊 / /stop / /steer / 收官清单）。全过则 M2 关闭，进 M3。讲解见 [notes/M2/03-真模型终端对话.md](notes/M2/03-真模型终端对话.md)；M3-01「工具说明书自动生成」教材已备（[notes/M3/01-工具说明书自动生成.md](notes/M3/01-工具说明书自动生成.md)，作业区待补充）
+- **下一步**：用户完成 [demo_web.py](demo_web.py) TODO(A)（`GET /events` SSE 端点——fastapi 核心一课，伪代码在注释里），`uv run pytest -v` **19 passed 不回归**，然后 `uv run python demo_web.py` 浏览器亲手点（打字机流式 / 停止 / 插话）。全过则 **M2 关闭**，进 M3-01。讲解见 [notes/M2/04-事件日志的脸面Web-UI.md](notes/M2/04-事件日志的脸面Web-UI.md)
+- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（19 passed）；`.env` 已配置；依赖新增 httpx / fastapi / uvicorn
 - **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（16 passed）；`.env` 已配置
 
 ## 里程碑进度
@@ -16,7 +17,7 @@
 |---|---|---|
 | M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
 | M1 最小 Agent Loop | ✅ 完成 | 4 节全绿；12 passed；loop.spec 场景复现 6 个（1/5/6/7/12/14）；echo demo + 冒烟通过 |
-| M2 真实 LLM + 流式 + 中断 | 进行中 | 第 1~2 节 ✅（19 passed）；第 3 节「真模型终端对话」已交付（集成节：TODO G/H + 亲手点四连） |
+| M2 真实 LLM + 流式 + 中断 | 进行中 | 第 1~3 节 ✅（19 passed；并发 runner + 降速窗口两修复）；第 4 节「Web UI」已交付（M2 收官验收载体） |
 | M3 工具系统 | 未开始 | M3-01 教材已备（作业区待补充） |
 | M4 上下文管理 | 未开始 | |
 | M5 子代理 | 未开始 | |

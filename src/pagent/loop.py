@@ -165,6 +165,7 @@ async def run_turn(agent: Agent) -> None:
         #   turn/end 与 agent.running = False 之后：raise   # 把取消抛回 run_loop 收尾
         except Exception as e:
             error = str(e)
+            # print(error)
             reason = "error"
         except asyncio.CancelledError:
             reason = "aborted"

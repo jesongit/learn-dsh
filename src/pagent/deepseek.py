@@ -119,8 +119,9 @@ class DeepSeekAdapter(LLMAdapter):
         choices = event["choices"]
         if choices == []:
             return []
-        if "finish_reason" in choices[0]:
-            return [Finish(_FINISH_MAP[choices[0]["finish_reason"]])]
+        finish_reason = choices[0].get("finish_reason")
+        if finish_reason is not None:
+            return [Finish(_FINISH_MAP[finish_reason])]
         delta: dict = choices[0]["delta"]
         if "content" in delta:
             return [TextDelta(index=0, text=delta["content"])]
