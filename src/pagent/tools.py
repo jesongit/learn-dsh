@@ -17,8 +17,9 @@ import inspect
 import json
 from collections.abc import Callable
 from dataclasses import dataclass
+from typing import Any
 
-from pydantic import BaseModel
+from pydantic import BaseModel, Field, ValidationError, create_model
 
 from pagent.types import ContentBlock, TextBlock, ToolSchema
 
@@ -51,6 +52,66 @@ class ToolDef:
 REGISTRY: dict[str, ToolDef] = {}
 
 
+# ── M3-01 亲手写区 ── 按 TODO(P) → (Q) → (R) 顺序 ────────────────────────
+
+# TODO(P)：签名 → pydantic 模型 —— 说明书自动生成的核心
+# ①语义：函数的每个参数变成模型的一个字段——类型注解即字段类型，
+#        默认值即 Field default；带默认 = 可选，不带默认 = 必填。
+#        模型名用函数名。（v0 纪律：工具函数一律带类型注解。）
+# ②伪代码：
+#   遍历 inspect.signature(fn).parameters：
+#       参数带默认值 → 字段 = (注解, Field(default=默认值))
+#       参数无默认值 → 字段 = (注解, ...)          # pydantic 的必填写法
+#   return create_model(fn.__name__, **字段表)
+# ③样例：def f(limit: int = 10) →
+#   create_model("f", limit=(int, Field(default=10)))
+#   该模型 .model_json_schema() 的 properties["limit"]
+#   == {"type": "integer", "default": 10}
+
+# TODO(Q)：@tool 装饰器 —— 装饰即登记
+# ①语义：包住带类型注解的函数，用 TODO(P) 生成说明书模型，组装
+#        ToolDef 存进 REGISTRY；返回原函数本身（它仍能被直接调用/单测）。
+# ②伪代码：
+#   def tool(description):            # 带参装饰器 = 两层函数
+#       def wrap(fn):
+#           REGISTRY[fn.__name__] = ToolDef(fn.__name__, description,
+#                                           model_from_fn(fn), fn)
+#           return fn
+#       return wrap
+# ③样例：
+#   @tool(description="抓取微博热搜榜")
+#   def fetch_weibo_hot_search(limit: int = 10) -> list[dict]: ...
+
+# ── 参考实现（暂存供学习：读懂后整段删除，对照上方 TODO 自己重写）────────
+def model_from_fn(fn: Callable) -> type[BaseModel]:
+    """签名 → pydantic 模型：注解即类型，默认值即 default，无默认即必填。"""
+    fields: dict[str, tuple] = {}
+    for name, param in inspect.signature(fn).parameters.items():
+        annotation = param.annotation
+        if annotation is inspect.Parameter.empty:  # 没写注解按 Any 兜底；v0 纪律是都写
+            annotation = Any
+        if param.default is inspect.Parameter.empty:
+            fields[name] = (annotation, ...)  # pydantic 的必填哨兵就是 Ellipsis 本尊
+        else:
+            fields[name] = (annotation, Field(default=param.default))
+    return create_model(fn.__name__, **fields)  # 运行时动态造一个模型类
+
+
+def tool(description: str):
+    """带参装饰器两层结构：tool(description) 先返回真正包住 fn 的 wrap。"""
+
+    def wrap(fn: Callable):
+        REGISTRY[fn.__name__] = ToolDef(
+            name=fn.__name__,
+            description=description,
+            model=model_from_fn(fn),
+            fn=fn,
+        )
+        return fn  # 原函数原样返回——它仍能被直接调用和单测
+
+    return wrap
+
+
 class ToolService:
     def __init__(self) -> None:
         # name -> (description, parameters, fn)  ← M1 手写说明书的老路，保留作回归护栏
@@ -62,39 +123,7 @@ class ToolService:
         """登记一个工具。fn 接收关键字参数，返回 str（或可 JSON 化的对象）。"""
         self._tools[name] = (description, parameters, fn)
 
-    # ── M3-01 亲手写区 ── 按 TODO(P) → (Q) → (R) 顺序 ────────────────────
-
-    # TODO(P)：签名 → pydantic 模型 —— 说明书自动生成的核心
-    # ①语义：函数的每个参数变成模型的一个字段——类型注解即字段类型，
-    #        默认值即 Field default；带默认 = 可选，不带默认 = 必填。
-    #        模型名用函数名。（v0 纪律：工具函数一律带类型注解。）
-    # ②伪代码：
-    #   遍历 inspect.signature(fn).parameters：
-    #       参数带默认值 → 字段 = (注解, Field(default=默认值))
-    #       参数无默认值 → 字段 = (注解, ...)          # pydantic 的必填写法
-    #   return create_model(fn.__name__, **字段表)
-    # ③样例：def f(limit: int = 10) →
-    #   create_model("f", limit=(int, Field(default=10)))
-    #   该模型 .model_json_schema() 的 properties["limit"]
-    #   == {"type": "integer", "default": 10}
-    # def model_from_fn(fn: Callable) -> type[BaseModel]: ...
-
-    # TODO(Q)：@tool 装饰器 —— 装饰即登记
-    # ①语义：包住带类型注解的函数，用 TODO(P) 生成说明书模型，组装
-    #        ToolDef 存进 REGISTRY；返回原函数本身（它仍能被直接调用/单测）。
-    # ②伪代码：
-    #   def tool(description):            # 带参装饰器 = 两层函数
-    #       def wrap(fn):
-    #           REGISTRY[fn.__name__] = ToolDef(fn.__name__, description,
-    #                                           model_from_fn(fn), fn)
-    #           return fn
-    #       return wrap
-    # ③样例：
-    #   @tool(description="抓取微博热搜榜")
-    #   def fetch_weibo_hot_search(limit: int = 10) -> list[dict]: ...
-    # def tool(description: str): ...
-
-    # TODO(R)：注册表聚合 + 校验先行 —— 升级 schemas()/execute()，签名不变
+    # ── TODO(R)：注册表聚合 + 校验先行 —— 升级 schemas()/execute()，签名不变 ──
     # ①语义：
     #   schemas()：在 M1 列表之外，把 REGISTRY 里每个 ToolDef 也转成
     #              ToolSchema——parameters 用 model.model_json_schema()。
@@ -107,22 +136,53 @@ class ToolService:
     #   ToolOutcome(call_id, is_error=True,
     #               content=[TextBlock("参数校验失败：limit … integer …")])
 
+    # ── 参考实现（暂存供学习：读懂后删除，对照上方 TODO(R) 重写）─────────────
+
     def schemas(self) -> list[ToolSchema]:
-        """已注册工具的说明书，随请求发给模型。"""
-        return [
+        """两路合并：M1 手写说明书 + M3 注册表聚合，一起发给模型。"""
+        schemas = [
             ToolSchema(name=name, description=description, parameters=parameters)
             for name, (description, parameters, _fn) in self._tools.items()
         ]
+        schemas += [
+            ToolSchema(
+                name=d.name,
+                description=d.description,
+                # model_json_schema() 附带 title 等元数据——wire format 容忍，无害
+                parameters=d.model.model_json_schema(),
+            )
+            for d in REGISTRY.values()
+        ]
+        return schemas
 
     async def execute(self, call_id: str, name: str, arguments: dict) -> ToolOutcome:
+        d = REGISTRY.get(name)
         entry = self._tools.get(name)
-        if entry is None:
+        if d is None and entry is None:
             return ToolOutcome(
                 call_id=call_id,
                 content=[TextBlock(text=f"未知工具：{name}")],
                 is_error=True,
             )
-        _description, _parameters, fn = entry
+
+        # M3 注册表工具：pydantic 校验先行——校验失败是字段级错误数据，不是异常
+        if d is not None:
+            try:
+                validated = d.model.model_validate(arguments)
+            except ValidationError as e:
+                return ToolOutcome(
+                    call_id=call_id,
+                    content=[TextBlock(text=f"参数校验失败：{e}")],
+                    is_error=True,
+                )
+            # 用校验后的值调用：model_dump() 把没传的可选字段按默认值补全；
+            # 多余的键被 pydantic 默认忽略（与 harness validateArgs 的
+            # extra-keys-allowed 语义对齐）
+            arguments = validated.model_dump()
+            fn = d.fn
+        else:
+            _description, _parameters, fn = entry
+
         try:
             result = fn(**arguments)
             if inspect.isawaitable(result):

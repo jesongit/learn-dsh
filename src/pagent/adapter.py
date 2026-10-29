@@ -39,7 +39,7 @@ class LLMAdapter(ABC):
 class LlmService:
     """极简版 ctx.llm：按模型名把请求分发给注册的 adapter。
 
-    同名模型后注册者覆盖先注册者——这也是一种 patch。
+    同名模型后注册者覆盖先注册者——这也是一种 patch。 
     """
 
     def __init__(self) -> None:
