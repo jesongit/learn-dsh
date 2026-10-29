@@ -60,6 +60,20 @@ sequenceDiagram
 
 读图三要点：① **常驻的是 run_loop 任务**——`agent.start()` 就是 `create_task(run_loop)`，Agent 对象只是容器；② **SSE 轮询归属 fastapi**——代码在 `/events` 端点的 async generator 里，浏览器只发一次 GET（长连接），之后被动收帧；③ **F 与 L 在同一事件循环里**——uvicorn 驱动 fastapi，lifespan 里 create_task 出 run_loop，两者是同进程内的两个任务，不是两个服务。
 
+<a id="known-diffs"></a>
+### 已知差异：与 harness Web 对照（刻意不追随的都写明）
+
+集成验收时发现一个真分歧：**abort 语义**。harness 的 abort 只掐当前 turn，agent 回 idle 继续值班（per-step AbortController）；我们的 v0（M2-02 Design B）是 abort 即停止循环任务——终端场景重开进程即可，**Web 场景页面不关，agent 会永久停摆**。当前解法是方案 a：`/stop` 端点在 abort 后自动等旧循环退场并拉起新循环（`demos/web.py` 的复活补丁，标注为临时）。正式归还 harness 语义（abort 存活）记入待探索，M3 真工具接入前或与 M5 多 agent 注册表一起做。
+
+其余差异为**已知且刻意不追随**（概念复刻原则：工程基建不复制）：
+
+| 维度 | harness Web | demo_web | 处置 |
+|---|---|---|---|
+| 事件投递 | `session/event` 广播，订阅即推 | 0.1s 轮询日志 | 已排期：Session 订阅（待探索首位，M6 兑现） |
+| 协议层 | JSON-RPC over gateway（api/sdk 体系） | 裸 REST + SSE | 不追随——网关是工程基建 |
+| 会话模型 | 多会话 + SessionStore + fork/resume | 单会话单 agent | M6 主菜 |
+| 鉴权 | token 鉴权（本机访问也要带 token）+ SAFETY 边界 | 无（仅绑 127.0.0.1） | 记差异；教学 demo 绑本机风险可控 |
+
 ## 4. 页面与范围
 
 页面按官方聊天 UI 风格做极简版：居中对话列、用户气泡靠右、助手消息流式打字、底部输入栏 + 发送/插话/停止按钮。**命令语言与终端一致**（`/steer`、`/stop` 前缀），载体变了、心智不变。明确不做：历史会话列表、多会话（M6 主菜）、视觉精修。
