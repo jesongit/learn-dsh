@@ -5,9 +5,9 @@
 
 ## 当前状态
 
-- **当前里程碑**：M2 · 第 2 节「中断与挂起归还」——已交付（基线 16+3），等用户实现
+- **当前里程碑**：M2 · 第 3 节「真模型终端对话」——已交付（M2 收官集成节），等用户实现 + 亲手点
 - **最近更新**：2026-10-29
-- **下一步**：用户完成 TODO(A)~(F)（[inbox.py](src/pagent/inbox.py) Future 闹钟、[agent.py](src/pagent/agent.py) start/abort、[loop.py](src/pagent/loop.py) 永续化+aborted 收场），目标 `uv run pytest -v` **19 passed**（当前基线 16+3，含 mock 'hang' 挂起条目与 abort 场景）。讲解见 [notes/M2/02-中断与挂起归还.md](notes/M2/02-中断与挂起归还.md)。完成后进 M2-03「真模型终端对话」
+- **下一步**：用户完成 [demo_echo.py](demo_echo.py) TODO(G)(H)（接线换 DeepSeekAdapter + /steer 命令；`uv run pytest -v` **19 passed 不回归**）+ 亲手点四连（流式真聊 / /stop / /steer / 收官清单）。全过则 M2 关闭，进 M3。讲解见 [notes/M2/03-真模型终端对话.md](notes/M2/03-真模型终端对话.md)；M3-01「工具说明书自动生成」教材已备（[notes/M3/01-工具说明书自动生成.md](notes/M3/01-工具说明书自动生成.md)，作业区待补充）
 - **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（16 passed）；`.env` 已配置
 
 ## 里程碑进度

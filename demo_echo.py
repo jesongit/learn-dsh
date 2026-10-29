@@ -1,19 +1,25 @@
-"""echo demo —— 亲手点①：第一次让你的 agent 在终端里说话。
+"""echo demo —— M2-03：终端真模型对话（M2 收官集成）。
 
 跑法：  uv run python demo_echo.py
-玩法：  输入任意文字看它接话；输入 `echo 你好` 看它走一次完整的工具往返
-        （模型请求调工具 → 执行 → 结果回填 → 总结）；`quit` 退出。
+玩法：  流式真聊；输出中途 /stop 中断；聊长问题时 /steer <新指示> 中途插话；
+        quit 退出。
 
-你要写的：EchoAdapter（TODO(A)~(C)，规则式假模型——不排剧本，第三种风格）。
-其余（终端回显、echo 工具、主循环）都已备好。
+你要写的：TODO(G) 把接线从 EchoAdapter 换到 DeepSeekAdapter（seam 兑现时刻）；
+TODO(H) 给 runner 加 /steer 命令。工具注册本节刻意移除——工具结果的真实
+wire format 是 M3 的主菜（预告：现在接工具，模型会「看不到结果」而反复调用）。
+EchoAdapter 与 mock 函数保留在文件里，作为三种 mock 风格的纪念品与测试基建。
 """
 
 from __future__ import annotations
 
 import asyncio
+import json
+import os
 
+from demo_smoke import load_env  # 复用冒烟脚本的 .env 读取（单一来源）
 from pagent.adapter import LLMAdapter, LlmService
 from pagent.agent import Agent
+from pagent.deepseek import DeepSeekAdapter
 from pagent.loop import run_loop
 from pagent.session import Session
 from pagent.tools import ToolService
@@ -130,29 +136,31 @@ class TerminalUI(LLMAdapter):
 
 
 def build_agent() -> Agent:
+    load_env()
+    api_key = os.environ.get("DEEPSEEK_API_KEY")
+    if not api_key:
+        raise SystemExit("缺少 DEEPSEEK_API_KEY：复制 .env.example 为 .env 并填入")
+
     session = Session("echo-demo")
     llm = LlmService()
-    llm.register(["echo"], TerminalUI(EchoAdapter()))  # UI 装饰在模型外层
-    tools = ToolService()
-    tools.register(
-        name="echo",
-        description="把给定文本原样返回（演示用）",
-        parameters={
-            "type": "object",
-            "properties": {"text": {"type": "string", "description": "要回显的文本"}},
-            "required": ["text"],
-        },
-        fn=lambda text: f"echo: {text}",
-    )
-    return Agent(
+    tools = ToolService()  # 刻意不注册工具——原因见 TODO(G) 注释
+
+    # ── TODO(G)：换真模型 ── M2-03 亲手写 ───────────────────────────
+    # 语义：seam 兑现——注册表里换 adapter、模型名指过去，其余代码零改动。
+    # 伪代码：
+    #   llm.register(["deepseek-chat"], TerminalUI(DeepSeekAdapter(api_key)))
+    #   Agent(..., model="deepseek-chat")
+    # （mock 时代的 echo 工具注册与 EchoAdapter 接线整体退役——文件里保留作纪念）
+    agent = Agent(
         id="echo-demo",
         session=session,
         llm=llm,
         tools=tools,
         model="echo",
         system_prompt="你是 PAgent 的演示 agent。",
-        max_steps=8,  # 防跑飞闸（亲手点②会把它改成 1 观察截断）
+        max_steps=8,  # 防跑飞闸
     )
+    return agent
 
 
 async def main() -> None:
@@ -175,6 +183,13 @@ async def main() -> None:
             print("  [abort] 中断当前 turn…")
             agent.abort()
             continue
+        # ── TODO(H)：/steer 命令 ── M2-03 亲手写 ────────────────────
+        # 语义：把 "/steer " 之后的内容作为插话转给 agent.steer()
+        #       （steer 只在 turn 运行中走快速通道——空闲时自动降级为排队）。
+        # 伪代码：
+        #   if line.startswith("/steer "):
+        #       agent.steer([TextBlock(text=line[7:])])
+        #       print("  [steer] 已插话"); continue
         agent.send([TextBlock(text=line)])
         print("PAgent> ", end="", flush=True)
         # 等 turn 落幕（粗轮询；事件驱动版 M2-03 再打磨）
