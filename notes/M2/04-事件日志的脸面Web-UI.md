@@ -31,6 +31,10 @@ data: {"type":"turn/end","data":{"turn":1,"reason":"completed"}}
 
 浏览器端 `EventSource` 自动解析帧、自动重连——终端 runner 里手工搭的输入线程和轮询播报员，在 Web 里全部白送。**并发输入天然成立**，这正是 harness 做 Web 的原因之一。
 
+### 对话疑点：seam 叠 seam 是什么？
+
+同一个接缝，**叠多层实现**：外层转发给内层并夹带私货，调用方只认接口、不知道自己被包了几层。demo 里的 `TerminalUI(EchoAdapter())` / `TerminalUI(DeepSeekAdapter(...))` 就是两层——UI 旁听 chunk 流（打印/降速）后原样转发。软件工程的老熟人：**装饰器模式 / middleware 洋葱模型 / Unix 管道**（每段同接口所以能无限串）；M1-02 的 waterfall 是同一思想用在**事件**上，叠 seam 是用在**服务**上。威力在组合：`Logging(Retry(DeepSeekAdapter()))` 随时包一层，loop 与真 adapter 毫不知情——harness 的 `packages/llm/llm-retry` 就是同一物种。本节的 Web 也一样：它是 session 日志的又一层数据消费者，与 TerminalUI 平级。
+
 ```mermaid
 %%{init: {"fontFamily": "Microsoft YaHei"}}%%
 sequenceDiagram
