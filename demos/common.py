@@ -6,7 +6,7 @@ import asyncio
 import os
 from collections.abc import AsyncIterator
 
-from pagent.adapter import LLMAdapter
+from pagent.adapter import LLMAdapter, LlmService
 from pagent.agent import Agent
 from pagent.deepseek import DeepSeekAdapter
 from pagent.session import Session

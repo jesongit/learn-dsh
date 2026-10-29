@@ -27,7 +27,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from pagent.agent import Agent
-from pagent.types import TextDelta
+from pagent.types import TextBlock, TextDelta
 
 # ── 全局 agent：lifespan 启动时创建，全应用共享同一个常驻循环 ────────────
 agent: Agent | None = None
@@ -58,6 +58,7 @@ class Msg(BaseModel):
 
 def serialize(event) -> dict:
     """日志事件 → 浏览器友好的 JSON（chunk 对象只保留 UI 需要的 text）。"""
+    # 过滤+序列化 日志 -> 浏览器
     data = dict(event.data)
     chunk = data.get("chunk")
     data["chunk"] = {"text": chunk.text} if isinstance(chunk, TextDelta) else None

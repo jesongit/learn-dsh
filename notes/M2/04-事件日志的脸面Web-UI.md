@@ -35,29 +35,19 @@ data: {"type":"turn/end","data":{"turn":1,"reason":"completed"}}
 %%{init: {"fontFamily": "Microsoft YaHei"}}%%
 sequenceDiagram
     participant B as 浏览器
-    participant F as fastapi 端点协程
+    participant F as fastapi 端点
     participant L as run_loop 任务（常驻）
-    Note over B,F: 页面打开：GET /events?seq=n 一次请求 · 长连接
-    B->>F: POST /send {text}
-    F->>L: agent.send(...) 入队
-    L->>L: 唤醒 → run_turn（流式输出中）
-    B->>F: POST /steer {text}
-    F->>L: agent.steer(...) 入队
-    L->>L: step 之间消化插话<br/>后续请求带上 <steering>
-    loop SSE 服务端轮询（0.1s，与以上全部并行）
-        F-->>B: data: {日志增量：chunk、steering…}
+    Note over F,L: 同进程 · 同一事件循环
+    B->>F: POST /send · /steer · /stop
+    F->>L: 转发给 agent 的对应方法
+    L->>L: run_turn：一切事件落日志<br/>（chunk · steering · turn/end）
+    loop SSE 轮询（0.1s · 页面打开即开始）
+        F-->>B: data: {日志增量}
     end
-    alt 用户点了停止
-        B->>F: POST /stop
-        F->>L: agent.abort() → task.cancel()
-        L->>L: 体面收场：step/end +<br/>turn/end (aborted) 落日志
-    else 模型说完
-        L->>L: turn/end (completed) 落日志
-    end
-    Note over F,B: turn/end 也只是普通日志增量——<br/>由上方 SSE 轮询在下一个 0.1s 拍照常推出，无特殊通道
+    Note over F,B: turn/end 也只是普通增量——无任何特殊通道
 ```
 
-读图三要点：① **常驻的是 run_loop 任务**——`agent.start()` 就是 `create_task(run_loop)`，Agent 对象只是容器；② **SSE 轮询归属 fastapi**——代码在 `/events` 端点的 async generator 里，浏览器只发一次 GET（长连接），之后被动收帧；③ **F 与 L 在同一事件循环里**——uvicorn 驱动 fastapi，lifespan 里 create_task 出 run_loop，两者是同进程内的两个任务，不是两个服务。
+读图两要点：① **常驻的是 run_loop 任务**（`agent.start()` = `create_task(run_loop)`，Agent 对象只是容器），且它与 fastapi 端点**同进程、同事件循环**；② **浏览器数据的唯一通道是 SSE 事件流**——Agent 与浏览器之间零直达，一切事件（含 turn/end）都是普通日志增量。三条命令的具体时序见 M2-02 / M2-03 教材。
 
 <a id="known-diffs"></a>
 ### 已知差异：与 harness Web 对照（刻意不追随的都写明）
