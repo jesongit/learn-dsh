@@ -60,6 +60,7 @@ class Session:
     #   step/start         turn: int, step: int                 一步开张
     #   assistant/chunk    turn, step, chunk: StreamChunk       ●  六种 chunk 之一（回放/UI 数据，不进投影）
     #   assistant/message  turn, step, content: list[ContentBlock]  ●  组装完毕的完整回复
+    #   assistant/usage    turn, step, usage: TokenUsage         ●  本 step 的 token 记账（M4-01）
     #   tool/call          turn, step, call_id: str, name: str,
     #                      arguments: str                          模型产出的原始 JSON 串
     #   tool/result        turn, step, call_id: str,
@@ -90,6 +91,15 @@ class Session:
             if event.type == "turn/start":
                 return event.data["turn"] + 1
         return 1
+
+    # ── TODO(N)：usage 报表 —— M4-01 亲手写 ──────────────────────────
+    # ①语义：账本是日志的又一个投影——扫 assistant/usage 事件做汇总，
+    #        给 M4-02 的压缩触发提供数据。返回 dict（或小 dataclass，你定）。
+    # ②伪代码：
+    #   遍历 self._events：type == "assistant/usage" 的，
+    #       累加 e.data["usage"].input_tokens / output_tokens
+    #   return {"input_tokens": 总输入, "output_tokens": 总输出}
+    # def usage_report(self) -> dict: ...
 
     def derive_messages(self) -> list[Message]:
         """把日志投影成模型历史（对照 Session.deriveMessages()）。

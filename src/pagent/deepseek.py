@@ -194,6 +194,20 @@ class DeepSeekAdapter(LLMAdapter):
         return res
         # raise NotImplementedError("TODO(B)")
 
+    # ── TODO(G)：usage 帧接回 ── M4-01 亲手写 ────────────────────────
+    # ①语义：provider 在流式响应里报告本次调用的 token 计数（input/output）。
+    #        M2-01 时 choices 为空的帧被直接忽略（范围纪律）；现在把它翻译成
+    #        UsageChunk 交给 loop 记账——账本从 wire 侧接入词汇表。
+    # ③样例（**假设形状**，见下方注意）：{"choices": [], "usage":
+    #   {"prompt_tokens": 100, "completion_tokens": 50}} →
+    #   [UsageChunk(usage=TokenUsage(input_tokens=100, output_tokens=50))]
+    # 注意：真实帧形状先采样确认（M2-01 教训——不许脑补 wire）：
+    #   编码第一步：发一次真请求，打印收尾两三帧，看 usage 长什么样、挂在
+    #   哪个帧（独立空 choices 帧？还是随 finish 帧？要不要请求参数开关？），
+    #   按实测改这个样例和 tests/test_usage.py 的断言——两处必须一起改。
+    # 分支顺序提示：usage 判断应放在 choices 空判断的近旁，别落到
+    # delta 分支后面（choices 为空的帧没有 delta 可言）。
+
     # ── TODO(C)：事件翻译 ────────────────────────────────────────────
     # 语义：一个 SSE JSON 事件 → 0..n 个 chunk。分支（按序）：
     #   choices 为空            → []（如纯 usage 帧，v0 忽略，M4 再接）

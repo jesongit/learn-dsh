@@ -59,11 +59,20 @@ def translate_event(event: dict) -> list[StreamChunk]:
 
 ## 5. 编码任务
 
-【待补充——M3-03 完成收尾时与脚手架一同补全（usage 帧接回 translate_event、loop 记账落日志、预算计算）】
+| TODO | 文件 | 语义 | 复杂处 |
+|---|---|---|---|
+| G | [src/pagent/deepseek.py](../../src/pagent/deepseek.py) | `translate_event` 接回 usage 帧 → `UsageChunk`（**第一步：采样真实 wire**——帧形状、挂靠位置、要不要开关参数，以实测为准，测试断言与实现一起改） | 别脑补 wire（M2-01 教训） |
+| M | [src/pagent/loop.py](../../src/pagent/loop.py) | `UsageChunk` 从 chunk 流分流：记 `assistant/usage` 事件（词汇表已登记），不进 assembler、不再混入 chunk 事件 | 账本与内容分流 |
+| N | [src/pagent/session.py](../../src/pagent/session.py) | `usage_report()`：日志的又一个投影——扫 `assistant/usage` 事件汇总 input/output | 投影思想的第三次兑现 |
+
+作业区（AI）：[tests/test_usage.py](../../tests/test_usage.py)——三条 skip 挂起（G 一条、M 一条、N 一条），按 G→M→N 顺序解锁。M 的用例顺带锁「chunk 事件里不再泄漏 UsageChunk」。
 
 ## 6. 运行与验证
 
-【待补充——同上】
+- 基线：`uv run pytest -q` → **39 passed, 3 skipped**
+- 实现 TODO(G)（先采样真实 wire，再改断言+实现）→ 解锁第一条
+- 实现 TODO(M)、TODO(N) → 全绿 **42 passed**
+- M4 收官亲手点在 M4-02：塞爆上下文，对比压缩触发前后的行为与账单
 
 ## 7. TS vs Python 差异与坑
 

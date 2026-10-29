@@ -124,6 +124,20 @@ async def run_turn(agent: Agent) -> None:
                 session.append("assistant/chunk", {"turn": turn, "step": step, "chunk": chunk})
                 assembler.push(chunk)
 
+            # ── TODO(M)：usage 记账分流 ── M4-01 亲手写 ──────────────────
+            # ①语义：chunk 流里会夹带 UsageChunk（M1 的 mock 每个响应都带；
+            #        M4-01 起真实 adapter 也带）——它是记账元数据，不是对话
+            #        内容。现在它被当普通 chunk 记进 assistant/chunk 事件，
+            #        埋在流里没法汇总；改为记专门的 assistant/usage 事件
+            #        （词汇表已登记），账本与内容分流。
+            # ②伪代码（改造上面的 async for）：
+            #       if isinstance(chunk, UsageChunk):
+            #           session.append("assistant/usage", {"turn": turn,
+            #               "step": step, "usage": chunk.usage})
+            #       else:
+            #           普通记账照旧（chunk 事件 + assembler.push）
+            #       # usage 不进 assembler——它不是内容块
+
             # TODO(6)：assistant = assembler.message()；
             #          session.append("assistant/message", {"turn": turn, "step": step,
             #                                               "content": assistant.content})
