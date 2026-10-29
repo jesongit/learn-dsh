@@ -151,12 +151,14 @@ def build_agent() -> Agent:
     #   llm.register(["deepseek-chat"], TerminalUI(DeepSeekAdapter(api_key)))
     #   Agent(..., model="deepseek-chat")
     # （mock 时代的 echo 工具注册与 EchoAdapter 接线整体退役——文件里保留作纪念）
+    llm.register(["deepseek-chat"], TerminalUI(DeepSeekAdapter(api_key)))
+
     agent = Agent(
-        id="echo-demo",
+        id="deepseek",
         session=session,
         llm=llm,
         tools=tools,
-        model="echo",
+        model="deepseek-chat",
         system_prompt="你是 PAgent 的演示 agent。",
         max_steps=8,  # 防跑飞闸
     )
@@ -183,6 +185,11 @@ async def main() -> None:
             print("  [abort] 中断当前 turn…")
             agent.abort()
             continue
+        if line.startswith("/steer "):
+            input_str = line.removeprefix("/steer ")
+            agent.steer([TextBlock(text=input_str)])
+            print(f"  [steer] 已插话 {input_str}")
+            continue
         # ── TODO(H)：/steer 命令 ── M2-03 亲手写 ────────────────────
         # 语义：把 "/steer " 之后的内容作为插话转给 agent.steer()
         #       （steer 只在 turn 运行中走快速通道——空闲时自动降级为排队）。
@@ -190,19 +197,22 @@ async def main() -> None:
         #   if line.startswith("/steer "):
         #       agent.steer([TextBlock(text=line[7:])])
         #       print("  [steer] 已插话"); continue
+
+        # 其他语句直接发进去
         agent.send([TextBlock(text=line)])
         print("PAgent> ", end="", flush=True)
         # 等 turn 落幕（粗轮询；事件驱动版 M2-03 再打磨）
+        # 注意：真模型有延迟——发出后日志可能还是空的，不能用 events[-1] 起手
         seen = len(agent.session.events)
-        last = agent.session.events[-1]
-        for _ in range(300):
+        last = None
+        for _ in range(300):  # 最多等 30s
             await asyncio.sleep(0.1)
             events = agent.session.events
             if len(events) > seen and events[-1].type == "turn/end":
                 last = events[-1]
                 break
         print()
-        if last.type == "turn/end":
+        if last is not None and last.type == "turn/end":
             print(f"  [turn{last.data['turn']} 结束，原因: {last.data['reason']}]")
     print("再见。")
 
