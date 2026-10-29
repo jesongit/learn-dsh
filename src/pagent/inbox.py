@@ -9,6 +9,7 @@ steering 队列：运行中的插话，step 之间消费。
 
 from __future__ import annotations
 
+import asyncio
 from dataclasses import dataclass
 
 from pagent.types import ContentBlock
@@ -23,6 +24,8 @@ class Inbox:
     def __init__(self) -> None:
         self._queued: list[InboxMessage] = []
         self._steering: list[InboxMessage] = []
+        # 「闹钟」：wait_for_queued 挂起时登记，enqueue 时敲响（M2-02 填逻辑）
+        self._wakeup: asyncio.Future | None = None
 
     @property
     def has_queued(self) -> bool:
@@ -49,3 +52,16 @@ class Inbox:
         drained = self._steering.copy()
         self._steering.clear()
         return drained
+
+    # ── TODO(A)：空闲挂起的「闹钟」── M2-02 亲手写 ──────────────────
+    # 语义：已有排队消息 → 立即返回；否则登记 Future 挂起，
+    #       直到 enqueue 敲响它（或被 cancel）才醒来。
+    # 伪代码：
+    #   if self.has_queued: return                     # 有活，不睡
+    #   self._wakeup = asyncio.get_running_loop().create_future()
+    #   try: await self._wakeup
+    #   finally: self._wakeup = None                   # 醒来/被取消都要撤闹钟
+    # async def wait_for_queued(self) -> None: ...
+
+    # ── TODO(B)：enqueue 末尾加一行——敲钟 ──────────────────────────
+    # 伪代码：if self._wakeup is not None: self._wakeup.set_result(None)

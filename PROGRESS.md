@@ -5,7 +5,7 @@
 
 ## 当前状态
 
-- **当前里程碑**：M2 · 第 2 节「中断与挂起归还」——已交付，等用户实现
+- **当前里程碑**：M2 · 第 2 节「中断与挂起归还」——已交付（基线 16+3），等用户实现
 - **最近更新**：2026-10-29
 - **下一步**：用户完成 TODO(A)~(F)（[inbox.py](src/pagent/inbox.py) Future 闹钟、[agent.py](src/pagent/agent.py) start/abort、[loop.py](src/pagent/loop.py) 永续化+aborted 收场），目标 `uv run pytest -v` **19 passed**（当前基线 16+3，含 mock 'hang' 挂起条目与 abort 场景）。讲解见 [notes/M2/02-中断与挂起归还.md](notes/M2/02-中断与挂起归还.md)。完成后进 M2-03「真模型终端对话」
 - **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（16 passed）；`.env` 已配置

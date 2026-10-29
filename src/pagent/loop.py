@@ -17,6 +17,7 @@ harness 原版是「永续循环：空闲时挂起等新消息」。v0 简化（
 
 from __future__ import annotations
 
+import asyncio
 import json
 from pagent.agent import Agent
 from pagent.assembler import BlockAssembler
@@ -24,13 +25,17 @@ from pagent.types import GenerateOptions, ToolCallBlock
 
 
 async def run_loop(agent: Agent) -> None:
-    """驱动 agent：排空 inbox 里所有排队的输入（每个 turn 一批）。
-
-    TODO(1)：一行循环——while agent.inbox.has_queued: await run_turn(agent)
-    """
+    """驱动 agent：常驻任务——挂起等输入，来一个 turn 跑一个 turn。"""
+    # ── TODO(E)：永续化 ── M2-02 亲手写 ─────────────────────────────
+    # 语义：归还 v0 让渡的「挂起」——没输入时挂起（不占 CPU），来输入跑 turn。
+    # 伪代码：
+    #   while True:
+    #     try: await agent.inbox.wait_for_queued()   # 挂起等输入
+    #     except asyncio.CancelledError: return      # 空闲时被 abort：无 turn 可收，下班
+    #     try: await run_turn(agent)
+    #     except asyncio.CancelledError: return      # turn 已在 run_turn 内收场(aborted)，任务到此为止
     while agent.inbox.has_queued:
         await run_turn(agent)
-    # raise NotImplementedError("TODO(1)")
 
 
 async def run_turn(agent: Agent) -> None:
@@ -120,6 +125,16 @@ async def run_turn(agent: Agent) -> None:
                     parsed = call.arguments                 # 降级：把模型写的原始字符串当参数往下传
                 outcome = await agent.tools.execute(call.id, call.name, parsed)
                 session.append("tool/result", {"turn": turn, "step": step, "call_id": outcome.call_id, "content": outcome.content, "is_error": outcome.is_error})
+        # ── TODO(F)：中断收场 ── M2-02 亲手写 ───────────────────────
+        # 语义：abort() 的 cancel 会在某个 await 点炸出 CancelledError——
+        #       它继承 BaseException，下面的 except Exception 接不住，要单独接。
+        # 伪代码：
+        #   while 前: aborted = False
+        #   在 except Exception 之前加：except asyncio.CancelledError: aborted = True
+        #   （收场叙事照旧：排插话、step/end 照落；中止不是事故，不落 error 事件）
+        #   reason 若 aborted → "aborted"（优先级：error > aborted > max-steps > completed）
+        #   turn/end 与 agent.running = False 之后：raise   # 把取消抛回 run_loop 收尾
+
         except Exception as e:
             error = str(e)
             reason = "error"

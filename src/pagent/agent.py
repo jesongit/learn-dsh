@@ -7,6 +7,8 @@ LoopAgent。v0 简化：没有 abort（M2）、没有 status 事件、没有 sta
 
 from __future__ import annotations
 
+import asyncio
+
 from pagent.inbox import Inbox, InboxMessage
 from pagent.tools import ToolService
 from pagent.types import ContentBlock
@@ -33,6 +35,8 @@ class Agent:
         self.inbox = Inbox()
         # 是否正在 turn 中——loop 维护；steer() 靠它决定走哪条通道
         self.running = False
+        # 永续循环任务句柄（start 创建；abort 靠它发取消信号）
+        self._task: asyncio.Task | None = None
 
     def send(self, content: list[ContentBlock]) -> None:
         """排队一条用户输入；loop 在下个 turn 开头整批消费。"""
@@ -48,3 +52,15 @@ class Agent:
     def inject(self, content: list[ContentBlock]) -> None:
         """上下文注入：只落日志（投影时包 <context> 信封），不触发 turn。"""
         self.session.append("context/message", {"content": content})
+
+    # ── TODO(C)：start —— 启动永续循环 ── M2-02 亲手写 ───────────────
+    # 语义：create_task 把 run_loop 挂成常驻任务，句柄存 self._task 并返回。
+    # 注意：run_loop 在 pagent.loop，而 loop 顶层 import 了 Agent——这里用
+    # 「函数内本地 import」打破循环（Python 惯用手法，注释讲明即可）。
+    # def start(self) -> asyncio.Task: ...
+
+    # ── TODO(D)：abort —— 中断当前 turn ── M2-02 亲手写 ─────────────
+    # 语义：对循环任务发 cancel 信号 → CancelledError 会在 run_turn 的
+    #       某个 await 点炸出 → turn 以 reason=aborted 体面收场。
+    # 伪代码：if self._task is not None: self._task.cancel()
+    # def abort(self) -> None: ...

@@ -155,25 +155,42 @@ def build_agent() -> Agent:
     )
 
 
-def main() -> None:
+async def main() -> None:
     agent = build_agent()
-    print("PAgent echo demo（quit 退出；试试：echo 你好）")
+    agent.start()  # 永续循环常驻——不再是「一行输入 asyncio.run 一次」
+    print("PAgent echo demo（quit 退出；/stop 中断；试试：echo 你好）")
     while True:
         try:
-            line = input("你> ").strip()
+            line = await asyncio.to_thread(input, "你> ")  # input 阻塞，丢线程里跑
         except (EOFError, KeyboardInterrupt):
+            agent.abort()
             break
-        if not line or line == "quit":
+        line = line.strip()
+        if not line:
+            continue
+        if line == "quit":
+            agent.abort()
             break
+        if line == "/stop":
+            print("  [abort] 中断当前 turn…")
+            agent.abort()
+            continue
         agent.send([TextBlock(text=line)])
         print("PAgent> ", end="", flush=True)
-        asyncio.run(run_loop(agent))
-        print()  # 流式回显后补个换行
+        # 等 turn 落幕（粗轮询；事件驱动版 M2-03 再打磨）
+        seen = len(agent.session.events)
         last = agent.session.events[-1]
+        for _ in range(300):
+            await asyncio.sleep(0.1)
+            events = agent.session.events
+            if len(events) > seen and events[-1].type == "turn/end":
+                last = events[-1]
+                break
+        print()
         if last.type == "turn/end":
             print(f"  [turn{last.data['turn']} 结束，原因: {last.data['reason']}]")
     print("再见。")
 
 
 if __name__ == "__main__":
-    main()
+    asyncio.run(main())

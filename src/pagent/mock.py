@@ -16,6 +16,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import json
 from collections.abc import AsyncIterator, Callable
 
@@ -126,6 +127,14 @@ class MockAdapter(LLMAdapter):
         if not self.script:
             raise RuntimeError("MockAdapter: 脚本耗尽")
         entry = self.script.pop(0)
+        if entry == "hang":
+            # 语义：只吐半个文本块就永久挂起，模拟「模型卡住」——供中断测试用。
+            # （对照 harness mock-adapter.ts 的 'hang' 条目：cancel 传播进这里的
+            #   await，CancelledError 向外冒，正好测试 loop 的中断收场）
+            yield BlockStart(index=0, block_type="text")
+            yield TextDelta(index=0, text="partial")
+            await asyncio.Event().wait()  # 永不 set → 一直挂到被 cancel
+            return
         chunks = entry(options) if callable(entry) else entry
         for chunk in chunks:
             yield chunk
