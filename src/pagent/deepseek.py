@@ -35,19 +35,20 @@ _FINISH_MAP = {
 
 _SSE_PREFIX = "data: "
 
-# ── ③ 样例数据：一条流式响应的 SSE 原文（6 行，空行分隔帧）──────────────
+# ── ③ 样例数据：一条流式响应的 SSE 原文（按真实 wire 采样）──────────────
+# 教训（M2-03 集成时发现）：真实流里【每一帧】都带 finish_reason 键，
+# 中间帧值为 null，只有末帧有值——判断要用值而非键。样例必须忠实于真实 wire。
 SSE_SAMPLE = "\n".join(
     [
-        'data: {"choices":[{"delta":{"role":"assistant","content":"你"}}]}',
+        'data: {"choices":[{"delta":{"role":"assistant","content":"你"},"finish_reason":null}]}',
         "",
-        'data: {"choices":[{"delta":{"content":"好"}}]}',
+        'data: {"choices":[{"delta":{"content":"好"},"finish_reason":null}]}',
         "",
-        'data: {"choices":[{"delta":{"tool_calls":['
-        '{"index":0,"id":"call-1","function":{"name":"echo","arguments":"{\\"text\\": "}}'
-        ']}}]}',
+        'data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call-1",'
+        '"function":{"name":"echo","arguments":"{\\"text\\": "}}]},"finish_reason":null}]}',
         "",
         'data: {"choices":[{"delta":{"tool_calls":[{"index":0,'
-        '"function":{"arguments":"\\"hi\\"}"}}]}}]}',
+        '"function":{"arguments":"\\"hi\\"}"}}]},"finish_reason":null}]}',
         "",
         'data: {"choices":[{"delta":{},"finish_reason":"tool_calls"}]}',
         "",
