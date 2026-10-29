@@ -175,19 +175,19 @@ def build_agent() -> Agent:
 async def main() -> None:
     agent = build_agent()
     agent.start()  # 永续循环常驻
-    loop = asyncio.get_running_loop()
 
-    # ── 输入线程：随时可打字，命令与消息经队列进入事件循环 ──────────
+    # ── 输入协程：随时可打字，命令与消息经队列进入事件循环 ──────────
     # （旧版等 turn 结束才回到 input——/stop、/steer 永远打不中；改为并发输入）
+    # 写法升级：阻塞的 input 丢进工作线程（asyncio.to_thread），外面全是 await——
+    # 不再需要 loop 句柄跨线程投递（run_coroutine_threadsafe 退役）
     inbox: asyncio.Queue[str] = asyncio.Queue()
 
-    def read_stdin() -> None:
+    async def read_stdin() -> None:
         while True:
-            line = input()
-            asyncio.run_coroutine_threadsafe(inbox.put(line), loop)
+            line = await asyncio.to_thread(input)
+            await inbox.put(line)
 
-    import threading
-    threading.Thread(target=read_stdin, daemon=True).start()
+    asyncio.create_task(read_stdin())
 
     # ── 事件播报员：轮询会话日志，播报 turn 结束与错误详情 ────────────
     async def reporter() -> None:

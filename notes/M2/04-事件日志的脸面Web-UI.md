@@ -87,6 +87,7 @@ sequenceDiagram
 
 ## 8. 待探索清单
 
+- **Session 订阅机制**：给 Session 加 `subscribe()` 异步迭代器（复用 M2-02 的 Future 闹钟做广播），三处 0.1s 轮询（终端播报员、本节 `/events`、`run_until_idle`）全部换成推送——M6（持久化同样要订阅事件流）时一次做三处受益
 - 断线重连的 `Last-Event-ID` 标准头
 - WebSocket 与 SSE 的取舍（双向 vs 单向）
 - harness 的多会话与 Web Session-follow adapter 全貌（M6 后回头很有味道）
