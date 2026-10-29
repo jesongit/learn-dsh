@@ -18,10 +18,13 @@ from pagent.adapter import LLMAdapter
 from pagent.types import (
     Finish,
     GenerateOptions,
+    Message,
     StreamChunk,
     TextBlock,
     TextDelta,
+    ToolCallBlock,
     ToolCallDelta,
+    ToolResultBlock,
 )
 
 API_URL = "https://api.deepseek.com/chat/completions"
@@ -124,18 +127,56 @@ class DeepSeekAdapter(LLMAdapter):
     # 伪代码：
     #   messages = [system?] + [{"role": m.role, "content": 拼接文本} for m in options.messages]
     #   返回 {"model": …, "messages": messages, "stream": True}
+    @staticmethod
+    def _render_message(m: Message) -> list[dict]:
+        """一条中性 Message → 0..n 条 wire 消息（role:"tool" 使其可能一对多）。"""
+        result = []
+        if m.role == "assistant":
+            # 模型的回复，回挂 回复消息 和 工具调用
+            content = ""
+            tool_calls = []
+            for block in m.content:
+                if isinstance(block, TextBlock):
+                    content += block.text
+                elif isinstance(block, ToolCallBlock):
+                    tool_calls.append({"id": block.id, "type": "function", "function":{
+                        "name": block.name, "arguments": block.arguments
+                    }})
+            if tool_calls:
+                result = [{"role": m.role, "content": content, "tool_calls": tool_calls}]
+            else:
+                result = [{"role": m.role, "content": content}]
+        elif m.role == "user":
+            # user 消息包含了用户的提示词和工具的 return
+            content = ""
+            for block in m.content:
+                if isinstance(block, TextBlock):
+                    content += block.text
+                elif isinstance(block, ToolResultBlock):
+                    if content != "":
+                        result.append({"role": "user", "content": content})
+                        content = ""
+                    block_content = "".join([bm.text for bm in block.content if isinstance(bm, TextBlock)])
+                    result.append({"role": "tool", "tool_call_id": block.tool_call_id, "content": block_content})
+            if content != "":
+                result.append({"role": "user", "content": content})
+        return result
+
+
     def _build_body(self, options: GenerateOptions) -> dict:
         messages = []
         if options.system is not None:
             messages.append({"role": "system", "content": options.system})
-        #print(messages)
         for m in options.messages:
-            #print(m)
-            content = "".join([tb.text for tb in m.content if isinstance(tb, TextBlock)])
-            messages.append({"role": m.role, "content": content})
-        # print(messages)
-        return {"model": options.model, "messages": messages, "stream": True}
-        # raise NotImplementedError("TODO(A)")
+            messages.extend(DeepSeekAdapter._render_message(m))
+        body = {"model": options.model, "messages": messages, "stream": True}
+
+        if options.tools:
+            body["tools"] = [{"type": "function", "function": {
+                "name": tool.name, "description": tool.description, "parameters": tool.parameters
+            }} for tool in options.tools]
+
+        return body
 
     # ── TODO(B)：SSE 帧解析（纯函数，测试主力）───────────────────────
     # 语义：SSE 全文 → JSON 事件列表。

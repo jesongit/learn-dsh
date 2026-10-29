@@ -38,7 +38,7 @@ def test_plain_messages_unchanged():
     assert "tools" not in body  # 没工具就不该有 tools 键
 
 
-@pytest.mark.skip(reason="TODO(E) 实现后删除本行")
+
 def test_body_carries_tool_schemas():
     """契约：tools 非空 → 说明书以 function-calling 形状随请求发出。"""
     options = GenerateOptions(
@@ -55,9 +55,13 @@ def test_body_carries_tool_schemas():
     }]
 
 
-@pytest.mark.skip(reason="TODO(F) 实现后删除本行")
+
 def test_assistant_tool_calls_array():
-    """契约：assistant 的 ToolCallBlock → tool_calls 数组（content 允许空串）。"""
+    """契约：assistant 的 ToolCallBlock → tool_calls 数组（content 允许空串）。
+
+    断言拆小：大结构单断言的失败 diff 会被 pytest 截断到读不了——
+    先量条数、再逐键比，每次失败都直指具体形状差在哪。
+    """
     options = GenerateOptions(
         model="deepseek-chat",
         messages=[Message(role="assistant",
@@ -65,15 +69,17 @@ def test_assistant_tool_calls_array():
                                                  arguments='{"command": "ls"}')])],
     )
     body = ADAPTER._build_body(options)
-    assert body["messages"] == [{
-        "role": "assistant", "content": "",
-        "tool_calls": [{"id": "c1", "type": "function",
-                        "function": {"name": "bash_run",
-                                     "arguments": '{"command": "ls"}'}}],
-    }]
+    msgs = body["messages"]
+    assert len(msgs) == 1, f"应产出 1 条 wire 消息，实得 {len(msgs)} 条：{msgs!r}"
+    msg = msgs[0]
+    assert msg["role"] == "assistant", f"role 错：{msg.get('role')!r}"
+    assert msg["content"] == "", f"content 应为空串：{msg.get('content')!r}"
+    assert msg["tool_calls"] == [{
+        "id": "c1", "type": "function",
+        "function": {"name": "bash_run", "arguments": '{"command": "ls"}'},
+    }], f"tool_calls 形状错：{msg.get('tool_calls')!r}"
 
 
-@pytest.mark.skip(reason="TODO(F) 实现后删除本行")
 def test_tool_result_becomes_role_tool():
     """契约：user 的 ToolResultBlock → 独立 role:"tool" 消息，id 原样回传。
 
@@ -87,6 +93,7 @@ def test_tool_result_becomes_role_tool():
                                                    is_error=False)])],
     )
     body = ADAPTER._build_body(options)
-    assert body["messages"] == [
-        {"role": "tool", "tool_call_id": "c1", "content": "hi\n"},
-    ]
+    msgs = body["messages"]
+    assert len(msgs) == 1, f"应产出 1 条 wire 消息，实得 {len(msgs)} 条：{msgs!r}"
+    assert msgs[0] == {"role": "tool", "tool_call_id": "c1", "content": "hi\n"}, \
+        f"wire 消息形状错：{msgs!r}"

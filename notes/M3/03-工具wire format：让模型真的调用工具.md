@@ -98,11 +98,24 @@ def _build_body(self, options: GenerateOptions) -> dict:
 作业区（AI）：[tests/test_tool_wire.py](../../tests/test_tool_wire.py)——三条 skip 挂起（E 一条、F 两条）+ 一条纯文本回归护栏当场绿（M2-01 行为不许被重构破坏）。
 已备好（AI）：[src/pagent/tool_weibo.py](../../src/pagent/tool_weibo.py)（`fetch_weibo_hot_search` 真工具样板，async @tool）；[demos/common.py](../../demos/common.py) 接线（**导入即注册**——`build_agent` import 两个工具模块，`ToolService` 读全局 `REGISTRY` 自动带上）。
 
+<a id="lesson-log"></a>
+### 编码实录
+
+- **TODO(E) 一次成型**：浅改名直译（`ToolSchema` → function-calling 信封），一次通过——M1 词汇表按 wire 形状设计的「翻译成本预付」当场兑现。
+- **TODO(F) 的 bug 谱系**（本节的重头）：① `_render_message` 写完**没接线**——`_build_body` 还跑着 M2-01 老路，skip 没解锁时「全绿」是假象，解锁后当场穿帮；② `append`/`extend` 之差——返回的整张列表被当成一条消息塞进去，截断 diff 里的 `[[` 双括号暴露了它；③ `"functino"` 拼写；④ `text`/`content` 变量泄漏——user 分支累加到未定义变量，若上轮循环是 assistant 还会跨迭代串数据（不报错、数据错，最恶劣一类）；⑤ `block.content` 是 dataclass 列表直发 wire；⑥ 纯文本 user 消息缺**最终 flush** 被吞；⑦ 重构 `_build_body` 时**把 system 前置块弄丢**——护栏测试 `test_plain_messages_unchanged` 抓住（继 M3-01 后第二次履行职责）。共性：**bug 全在「边界与接缝」，核心翻译逻辑一次写对**；「写完」和「接进主流程」是两件事。
+- **断言可读性改造**（用户促成）：大结构单断言的失败 diff 被 pytest 截断到没法读——两条 F 测试拆成「先量条数、再逐键比」的小断言；工具箱三件：`pytest -vv` 全量 diff、读截断输出的括号形状、断言拆小。失败的测试是被人读得最多的测试，**失败输出是规格 UX 的一部分**。
+
+<a id="qa-wire"></a>
+### 对话疑点
+
+**Q9 出站 wire 只能手动拼吗？为什么不上 pydantic/SDK？** 只能且应当手动拼——它其实是**浅改名**：`ToolSchema` 三个字段与 wire 的 `function` 对象近似同构、`parameters` 已是 JSON Schema，翻译只剩加信封（M1 定词汇表时**预付了翻译成本**）。pydantic 的价值在校验**不可信的入站**（fastapi 请求体、工具参数）；出站是自家刚构造的数据，校验等于给刚盖的章再盖一次。openai SDK/litellm 会把 wire 藏进库壳——adapter 的存在意义就是这层翻译。harness 的 TS 同样在运行时手工组装 wire 对象：**类型系统管构造期，运行时 wire 永远是手写形状**。
+
+**Q10 测试失败显示不全怎么办？** 见实录第三条——`-vv` + 括号形状 + 拆断言。另外：护栏测试保持整列表断言是刻意的（它验「完整序列形状」），靠 `-vv` 读。
+
 ## 6. 运行与验证
 
-- 基线：`uv run pytest -q` → **35 passed, 3 skipped**
-- 实现 TODO(E) → 解锁 `test_body_carries_tool_schemas`；实现 TODO(F) → 解锁其余两条；护栏全程绿 → **38 passed**
-- 全绿后收官验收：`uv run python -m demos.echo`，问「今天微博热搜有什么，帮我总结」——看模型真的调 `fetch_weibo_hot_search`，要跑命令时会调 `bash_run`
+- 全绿：`uv run pytest -q` → **39 passed**（护栏抓住重构丢 system 一次，见实录）
+- 收官验收：`uv run python -m demos.echo`，问「今天微博热搜有什么，帮我总结」——看模型真的调 `fetch_weibo_hot_search`，要跑命令时会调 `bash_run`
 - **收官亲手点**：写一个你自己想要的新工具（带类型注解的函数 + `@tool(description=…)` 两行装饰），接进对话看模型调它——这就是 M3 的完成标准：「新增一个工具只需写一个带类型注解的函数」
 
 ## 7. TS vs Python 差异与坑
