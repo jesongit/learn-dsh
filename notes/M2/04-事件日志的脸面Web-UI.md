@@ -39,22 +39,24 @@ sequenceDiagram
     participant A as Agent（常驻）
     B->>F: POST /send {text}
     F->>A: agent.send(...)
-    A->>A: run_turn 开始（流式输出中）
+    A->>A: run_turn（user/message 落日志，流式输出中）
     B->>F: POST /steer {text}
     F->>A: agent.steer(...)
     A->>A: step 之间消化插话<br/>后续请求带上 <steering>
-    loop 事件流（SSE）
-        B->>F: GET /events?seq=n
-        F-->>B: data: {增量事件}
-    end
     alt 用户点了停止
         B->>F: POST /stop
-        F->>A: agent.abort()
-        A-->>B: turn/end (aborted)
+        F->>A: agent.abort() → task.cancel()
+        A->>A: 体面收场：step/end +<br/>turn/end (aborted)
     else 模型说完
-        A-->>B: turn/end (completed)
+        A->>A: turn/end (completed)
+    end
+    loop SSE 事件流（页面打开即开始，与以上全部并行）
+        B->>F: GET /events?seq=n
+        F-->>B: data: {一切增量事件，含 turn/end}
     end
 ```
+
+读图要点：**Agent 产生的信息到达浏览器的唯一通道是 SSE 事件流**——A 与 B 之间没有直达箭头（对照 M2-03 修过的同类错误：模型和循环从不直接碰日志，这里 agent 也从不直接碰浏览器）；abort 的 `cancel` 是异步注入，收场落在 run_turn 内部，`turn/end` 依旧经日志 → SSE 到达页面。
 
 ## 4. 页面与范围
 
