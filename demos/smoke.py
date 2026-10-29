@@ -4,7 +4,7 @@
 仅此而已，流式（SSE）留给 M2。
 
 前置：根目录 `.env` 里有 DEEPSEEK_API_KEY（模板见 .env.example）。
-跑法：uv run python demo_smoke.py
+跑法：uv run python -m demos.smoke
 
 实现说明：用标准库 urllib 直连（httpx 到 M2 才引入）；响应被手工拆成
 StreamChunk 塞进同一个接口形状——先看数据长什么样，M2 再正式写适配器。
@@ -16,6 +16,8 @@ import json
 import os
 import urllib.request
 from collections.abc import AsyncIterator
+
+from demos.common import load_env
 
 from pagent.adapter import LLMAdapter
 from pagent.types import (
@@ -32,17 +34,6 @@ from pagent.types import (
 )
 
 API_URL = "https://api.deepseek.com/chat/completions"
-
-
-def load_env(path: str = ".env") -> None:
-    """极简 .env 读取（M2 会换成正式方案；这里零依赖）。"""
-    if not os.path.exists(path):
-        return
-    for line in open(path, encoding="utf-8"):
-        line = line.strip()
-        if line and not line.startswith("#") and "=" in line:
-            key, _, value = line.partition("=")
-            os.environ.setdefault(key.strip(), value.strip())
 
 
 class DeepSeekSmokeAdapter(LLMAdapter):

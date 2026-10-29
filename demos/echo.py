@@ -1,6 +1,6 @@
 """echo demo —— M2-03：终端真模型对话（M2 收官集成）。
 
-跑法：  uv run python demo_echo.py
+跑法：  uv run python -m demos.echo
 玩法：  流式真聊；输出中途 /stop 中断；聊长问题时 /steer <新指示> 中途插话；
         quit 退出。
 
@@ -13,16 +13,10 @@ EchoAdapter 与 mock 函数保留在文件里，作为三种 mock 风格的纪�
 from __future__ import annotations
 
 import asyncio
-import json
-import os
+from collections.abc import AsyncIterator
 
-from demo_smoke import load_env  # 复用冒烟脚本的 .env 读取（单一来源）
-from pagent.adapter import LLMAdapter, LlmService
-from pagent.agent import Agent
-from pagent.deepseek import DeepSeekAdapter
-from pagent.loop import run_loop
-from pagent.session import Session
-from pagent.tools import ToolService
+from demos.common import build_agent
+from pagent.adapter import LLMAdapter
 from pagent.types import (
     BlockEnd,
     BlockStart,
@@ -39,9 +33,6 @@ from pagent.types import (
     UsageChunk,
 )
 from pagent.mock import text_response, tool_call_response
-
-# 每个 chunk 之间的人为停顿（秒）——给 /stop、/steer 留出手速窗口；0 = 火箭模式
-STREAM_DELAY = 0.05
 
 
 class EchoAdapter(LLMAdapter):
@@ -119,57 +110,6 @@ class EchoAdapter(LLMAdapter):
             yield chunk
 
         # raise NotImplementedError("TODO(A)~(C)：按 docstring 的三条规则实现")
-
-
-class TerminalUI(LLMAdapter):
-    """终端回显装饰器：包住任何 adapter，流式期间把文本增量打到屏幕。
-
-    seam 可以叠 seam——UI 不改变模型行为，只是"旁听"chunk 流。
-    delay：每个 chunk 之间的人为停顿（秒）——给 /stop、/steer 留出手速窗口；
-    0 = 火箭模式。seam 叠 seam 的又一次兑现：降速也是一层包装。
-    """
-
-    def __init__(self, inner: LLMAdapter, delay: float = 0.0) -> None:
-        self._inner = inner
-        self._delay = delay
-
-    async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
-        async for chunk in self._inner.stream(options):
-            if isinstance(chunk, TextDelta):
-                print(chunk.text, end="", flush=True)
-            if self._delay:
-                await asyncio.sleep(self._delay)
-            yield chunk
-
-
-def build_agent() -> Agent:
-    load_env()
-    api_key = os.environ.get("DEEPSEEK_API_KEY")
-    if not api_key:
-        raise SystemExit("缺少 DEEPSEEK_API_KEY：复制 .env.example 为 .env 并填入")
-
-    session = Session("echo-demo")
-    llm = LlmService()
-    tools = ToolService()  # 刻意不注册工具——原因见 TODO(G) 注释
-
-    # ── TODO(G)：换真模型 ── M2-03 亲手写 ───────────────────────────
-    # 语义：seam 兑现——注册表里换 adapter、模型名指过去，其余代码零改动。
-    # 伪代码：
-    #   llm.register(["deepseek-chat"], TerminalUI(DeepSeekAdapter(api_key)))
-    #   Agent(..., model="deepseek-chat")
-    # （mock 时代的 echo 工具注册与 EchoAdapter 接线整体退役——文件里保留作纪念）
-    llm.register(["deepseek-chat"], TerminalUI(DeepSeekAdapter(api_key), delay=STREAM_DELAY))
-
-    agent = Agent(
-        id="deepseek",
-        session=session,
-        llm=llm,
-        tools=tools,
-        model="deepseek-chat",
-        system_prompt="你是 PAgent 的演示 agent。",
-        max_steps=8,  # 防跑飞闸
-    )
-    return agent
 
 
 async def main() -> None:

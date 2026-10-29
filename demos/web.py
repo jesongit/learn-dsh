@@ -1,6 +1,6 @@
 """demo_web —— M2-04：给 agent 一张 Web 的脸（M2 收官验收载体）。
 
-跑法：  uv run python demo_web.py
+跑法：  uv run python -m demos.web
 浏览器：http://127.0.0.1:8000
 
 架构（第 0 课原则的兑现：UI 是日志的投影）——
@@ -21,8 +21,7 @@ import os
 from contextlib import asynccontextmanager
 
 import uvicorn
-from demo_smoke import load_env
-from demo_echo import build_agent
+from demos.common import build_agent, load_env
 from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel

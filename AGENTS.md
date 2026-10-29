@@ -20,13 +20,13 @@ D:\code\PAgent\
 ├── pyproject.toml     # uv 项目定义（根目录即项目）
 ├── src/pagent/        # PAgent 源码（Python 包）
 ├── tests/             # pytest 测试
-├── demo_echo.py       # 演示：终端对话（M1-04）
-├── demo_smoke.py      # 演示：真实 API 冒烟（M1 收尾）
+├── demos/echo.py       # 演示：终端对话（M1-04）
+├── demos/smoke.py      # 演示：真实 API 冒烟（M1 收尾）
 ├── .env / .env.example# 密钥（不入库）与模板
 └── deepseek-harness/  # 参考仓库：只读。绝不修改、不提交、不切换分支/checkout
 ```
 
-所有命令都在**根目录**执行：`uv run pytest` / `uv run python demo_echo.py`。
+所有命令都在**根目录**执行：`uv run pytest` / `uv run python demos/echo.py`。
 
 ## AI 助手工作流程（记忆机制）
 

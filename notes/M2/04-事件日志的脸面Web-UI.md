@@ -68,14 +68,14 @@ sequenceDiagram
 
 | TODO | 文件 | 语义 | 复杂处 |
 |---|---|---|---|
-| A | [demo_web.py](../../demo_web.py) | `GET /events` SSE 端点：轮询 session 增量 → 逐帧 yield（伪代码在注释里） | 断线检测 + seq 续播 |
+| A | [demos/web.py](../../demos/web.py) | `GET /events` SSE 端点：轮询 session 增量 → 逐帧 yield（伪代码在注释里） | 断线检测 + seq 续播 |
 
 已备好（AI）：app 与 lifespan（agent 拉起/收场）、三个命令端点（`/send` `/steer` `/stop`，pydantic 请求体）、`serialize()`（日志事件 → 浏览器 JSON）、内嵌聊天页面（HTML/CSS/JS：EventSource 消费 SSE、打字机渲染、命令栏）。
 
 ## 6. 运行与验证
 
 - 基线（已验证）：`uv run pytest -v` → **19 passed 不回归**（Web 是新增消费者，不碰任何既有逻辑）
-- TODO(A) 完成 + `uv run python demo_web.py` + 浏览器 `http://127.0.0.1:8000`
+- TODO(A) 完成 + `uv run python demos/web.py` + 浏览器 `http://127.0.0.1:8000`
 - 亲手点（M2 收官验收）：打字机流式输出 → 输出中点「停止」→ `reason=aborted` → 长回答中「插话」→ 观察改道 → **流式 ✓ 中断 ✓ 插话 ✓ = M2 关闭**
 
 ## 7. TS vs Python 差异与坑
