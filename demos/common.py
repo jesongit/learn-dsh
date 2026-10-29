@@ -49,10 +49,13 @@ class TerminalUI(LLMAdapter):
 
 
 def build_agent() -> Agent:
-    """装配真模型 agent：DeepSeekAdapter + TerminalUI 降速 + 防跑飞闸。
+    """装配真模型 agent：DeepSeekAdapter + TerminalUI 降速 + 真工具。
 
-    工具刻意不注册——工具结果的 wire format 是 M3 主菜（M2-01 遗留）。
+    M3-03 起接真工具：@tool 装饰即写全局 REGISTRY，ToolService 读它——
+    所以「接线」只是把工具模块 import 进来（导入即注册）。
     """
+    from pagent import tool_bash  # noqa: F401 —— 导入即完成 @tool 登记
+    from pagent import tool_weibo  # noqa: F401
     load_env()
     api_key = os.environ.get("DEEPSEEK_API_KEY")
     if not api_key:

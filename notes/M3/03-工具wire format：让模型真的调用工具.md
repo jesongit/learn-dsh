@@ -90,11 +90,20 @@ def _build_body(self, options: GenerateOptions) -> dict:
 
 ## 5. 编码任务
 
-【待补充——M3-02 完成收尾时与脚手架一同补全（`_build_body` 的 tools 序列化 + 角色制消息翻译 + fetch_weibo 真工具 + demo 接线）】
+| TODO | 文件 | 语义 | 复杂处 |
+|---|---|---|---|
+| E | [src/pagent/deepseek.py](../../src/pagent/deepseek.py) | `_build_body` 挂 tools 说明书：`ToolSchema` → `{"type":"function","function":{…}}`（伪代码在 TODO(E) 注释里） | 直译，热身 |
+| F | 同上 | 消息翻译升级：assistant 的 `ToolCallBlock` → `tool_calls` 数组；user 的 `ToolResultBlock` → 独立 `role:"tool"` 消息（id 对账）；纯文本走 M2-01 老路 | `_build_body` 整体重构；**顺序约束**——tool_calls 后必须紧跟每个 id 的 role:"tool"，缺则 400 |
+
+作业区（AI）：[tests/test_tool_wire.py](../../tests/test_tool_wire.py)——三条 skip 挂起（E 一条、F 两条）+ 一条纯文本回归护栏当场绿（M2-01 行为不许被重构破坏）。
+已备好（AI）：[src/pagent/tool_weibo.py](../../src/pagent/tool_weibo.py)（`fetch_weibo_hot_search` 真工具样板，async @tool）；[demos/common.py](../../demos/common.py) 接线（**导入即注册**——`build_agent` import 两个工具模块，`ToolService` 读全局 `REGISTRY` 自动带上）。
 
 ## 6. 运行与验证
 
-【待补充——同上】
+- 基线：`uv run pytest -q` → **35 passed, 3 skipped**
+- 实现 TODO(E) → 解锁 `test_body_carries_tool_schemas`；实现 TODO(F) → 解锁其余两条；护栏全程绿 → **38 passed**
+- 全绿后收官验收：`uv run python -m demos.echo`，问「今天微博热搜有什么，帮我总结」——看模型真的调 `fetch_weibo_hot_search`，要跑命令时会调 `bash_run`
+- **收官亲手点**：写一个你自己想要的新工具（带类型注解的函数 + `@tool(description=…)` 两行装饰），接进对话看模型调它——这就是 M3 的完成标准：「新增一个工具只需写一个带类型注解的函数」
 
 ## 7. TS vs Python 差异与坑
 

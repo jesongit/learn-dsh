@@ -68,6 +68,56 @@ class DeepSeekAdapter(LLMAdapter):
         self._api_key = api_key
         self._transport = transport
 
+    # ── TODO(E)(F)：工具 wire format ── M3-03 亲手写（M2-01 遗留主菜）────
+    # 背景：options.tools 至今被忽略（模型根本不知道有工具）；且消息翻译只认
+    #       TextBlock——历史里的 ToolResultBlock 会被拼成空串（工具结果蒸发）。
+    #       本节升级 _build_body（与 TODO(A) 是同一个方法，重构它；纯文本行为
+    #       不得变——护栏测试守着）。
+    #
+    # TODO(E)：说明书随行（热身）
+    # ①语义：options.tools 的每份 ToolSchema 直译成 DeepSeek function-calling
+    #        形状挂上请求体——模型由此知道能调什么。
+    # ②伪代码：tools 非空时 → body["tools"] = 每份 schema →
+    #          {"type": "function",
+    #           "function": {"name": …, "description": …, "parameters": 原样}}
+    # ③样例：ToolSchema("bash_run", "在宿主机 shell…", {"type": "object", …})
+    #   → {"type": "function",
+    #      "function": {"name": "bash_run", "description": "在宿主机 shell…",
+    #                   "parameters": {"type": "object", …}}}
+    #
+    # TODO(F)：消息翻译升级（主菜）
+    # ①语义：三种消息三种走法——
+    #        assistant 消息：ToolCallBlock 收集成 tool_calls 数组挂回该消息
+    #        （content 仍是 TextBlock 拼接，可以为空串）；
+    #        user 消息里的 ToolResultBlock：逐块拆成**独立**的 role:"tool"
+    #        消息，tool_call_id 原样回传（模型的对账凭据），
+    #        content = 结果内 TextBlock 拼接；
+    #        纯 TextBlock 消息走 M2-01 老路。
+    #        硬约束：assistant 带 tool_calls 之后必须紧跟每个 id 的 role:"tool"
+    #        回复，缺一个 DeepSeek 直接 400——derive_messages 的投影顺序
+    #        天然满足（assistant/message 后面就是 tool/result），翻译时别打乱。
+    # ②伪代码：
+    #   for m in options.messages:
+    #       if m.role == "assistant":
+    #           tool_calls = [每个 ToolCallBlock →
+    #               {"id": b.id, "type": "function",
+    #                "function": {"name": b.name, "arguments": b.arguments}}]
+    #           挂 {"role": "assistant", "content": Text 拼接,
+    #               "tool_calls": tool_calls（非空才带）}
+    #       elif m.role == "user":
+    #           逐块分流（保持顺序）：
+    #               ToolResultBlock → 立即挂 {"role": "tool",
+    #                   "tool_call_id": b.tool_call_id,
+    #                   "content": b.content 内 Text 拼接}
+    #               TextBlock → 累进缓冲；缓冲非空才挂 {"role": "user", …}
+    # ③样例：投影 [assistant([ToolCallBlock("c1","bash_run","{\"command\":\"ls\"}")]),
+    #          user([ToolResultBlock("c1", [TextBlock("hi\n")], False)])] →
+    #   [{"role": "assistant", "content": "",
+    #     "tool_calls": [{"id": "c1", "type": "function",
+    #                     "function": {"name": "bash_run",
+    #                                  "arguments": "{\"command\":\"ls\"}"}}]},
+    #    {"role": "tool", "tool_call_id": "c1", "content": "hi\n"}]
+
     # ── TODO(A)：请求体 ──────────────────────────────────────────────
     # 语义：GenerateOptions → DeepSeek 请求体（M1 冒烟见过的形状）+ 流式开关。
     # system 单独放一条 system 消息；每条消息的 content 把各 TextBlock 的文本拼接。
