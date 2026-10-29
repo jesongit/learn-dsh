@@ -77,8 +77,26 @@ def steer(msg: Msg) -> dict:
 
 
 @app.post("/stop")
-def stop() -> dict:
+async def stop() -> dict:
+    """中断当前 turn，并自动复活常驻循环（方案 a 临时补丁）。
+
+    背景：M2-02 的 v0 语义是「abort 即停止循环任务」（Design B）——终端场景
+    重开进程即可，Web 场景页面不关，agent 会永久停摆。这里的复活是
+    demo 级补丁；正式归还「abort 后 agent 仍存活」的 harness 语义，
+    见 M2-04 教材「已知差异」的 b 方案（待探索）。
+    """
     agent.abort()
+
+    async def _revive() -> None:
+        old = agent._task  # noqa: SLF001 —— demo 补丁，方案 b 归还时收敛
+        if old is not None:
+            try:
+                await old  # 等旧循环体面退场（turn 收场日志要落完）
+            except asyncio.CancelledError:
+                pass
+        agent.start()  # 拉起新的常驻循环
+
+    asyncio.create_task(_revive())
     return {"ok": True}
 
 
