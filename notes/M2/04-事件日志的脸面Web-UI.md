@@ -39,14 +39,21 @@ sequenceDiagram
     participant A as Agent（常驻）
     B->>F: POST /send {text}
     F->>A: agent.send(...)
-    A->>A: run_turn（流式/工具/方向盘）
+    A->>A: run_turn 开始（流式输出中）
+    B->>F: POST /steer {text}
+    F->>A: agent.steer(...)
+    A->>A: step 之间消化插话<br/>后续请求带上 <steering>
     loop 事件流（SSE）
         B->>F: GET /events?seq=n
         F-->>B: data: {增量事件}
     end
-    B->>F: POST /stop
-    F->>A: agent.abort()
-    A-->>B: turn/end (aborted)
+    alt 用户点了停止
+        B->>F: POST /stop
+        F->>A: agent.abort()
+        A-->>B: turn/end (aborted)
+    else 模型说完
+        A-->>B: turn/end (completed)
+    end
 ```
 
 ## 4. 页面与范围
