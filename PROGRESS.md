@@ -5,10 +5,10 @@
 
 ## 当前状态
 
-- **当前里程碑**：M3 · 第 1 节「工具说明书自动生成」**完成** ✅（重写 26 passed）；第 2 节「真实工具解剖：bash 与错误分层」已交付全套，等用户学习
+- **当前里程碑**：M3 · 第 2 节「真实工具解剖：bash 与错误分层」**完成** ✅（35 passed）；第 3 节「工具 wire format」已交付全套，等用户学习
 - **最近更新**：2026-10-30
-- **下一步**：用户学习 [notes/M3/02-真实工具解剖：bash与错误分层.md](notes/M3/02-真实工具解剖：bash与错误分层.md)，亲手实现 `render_result` 结果整形 + `bash_run` 真工具（TODO 骨架在 `src/pagent/tool_bash.py` 与 `tests/test_tool_bash.py`）；M3-03 教材已备
-- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（26 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic
+- **下一步**：用户学习 [notes/M3/03-工具wire format：让模型真的调用工具.md](notes/M3/03-工具wire format：让模型真的调用工具.md)，亲手改写 `_build_body`（TODO(E) tools 序列化 + TODO(F) 角色制消息翻译）——补完后 DeepSeek 第一次真的调用 `bash_run`；M4-01 教材已备
+- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（35 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic
 - **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（19 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
 
 ## 里程碑进度
@@ -18,7 +18,7 @@
 | M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
 | M1 最小 Agent Loop | ✅ 完成 | 4 节全绿；loop.spec 场景复现 6 个；echo demo + 冒烟通过 |
 | M2 真实 LLM + 流式 + 中断 | ✅ 完成 | 4 节全绿（19 passed）；终端流式/中断/插话 + Web UI 收官（send/steer/stop/复活全链路机械验证通过）；serialize() 讨论收敛为一行 asdict 边界 |
-| M3 工具系统 | 进行中 | 第 1 节 ✅（26 passed；@tool + pydantic 校验管线 + 单表统一）；第 2 节已交付（脚手架+作业区+基线）；M3-03 教材已备 |
+| M3 工具系统 | 进行中 | 第 1 节 ✅（26 passed；@tool + pydantic 校验 + 单表统一）；第 2 节 ✅（35 passed；render_result + bash_run + 错误分层）；第 3 节已交付（wire format，M3 收官） |
 | M4 上下文管理 | 未开始 | |
 | M5 子代理 | 未开始 | |
 | M6 会话持久化 | 未开始 | |
@@ -45,6 +45,10 @@
 - **schema-from-code = 一份声明三个消费者**：开发者类型、模型说明书、边界校验全从一份声明派生。TS 是「声明 → 反推类型」（类型运行时蒸发，必须造运行时声明物），Python 是「注解 → 生成 schema」——方向相反，原理同一；harness 分三天补齐第三个消费者（ef45ca823a → 8b5a3ef730 手写权宜 → 36a30180b8 内建 validateArgs）。（M3-01 讨论确认）
 - **校验跟代码走**：`model=None` 的外来工具（MCP 形状）宿主侧不校验——谁有代码谁负责；两种来源构造后形态同一（parameters + model 可空）。注解只适用于「代码在我手里」的工具。（M3-01 讨论确认）
 - **接口签名由调用方决定**：实例方法漏 self、签名漂移、装饰器参数改名、判空分支里取判空变量的属性——重写的 bug 全集中在「边界与契约」，核心逻辑零错。（M3-01 实战）
+- **结果整形：数据保真、结构随便、损失必须明示**——数据文本（命令输出）一个字节不动，结构文本（标签/标记）随便整形；判据不是「字节变没变」而是「会不会引发错误推断」，精化版是「静默的损失才可怕」（截断有通告+spill 找回，哨兵是显式编码，rstrip 无通告无找回）。接缝换行是标记的第一个字节，与数据尾换行身份不同、位置可重合。（M3-02 讨论确认）
+- **join 表达无条件分隔，条件追加要手写判断**：`"".endswith("\n")` 是 False——空 body 的按需补换行必须两段式条件（非空 且 未以换行结尾）。（M3-02 实战）
+- **测试没覆盖的路径是必修重灾区**：四条单侧非空的测试让 `=` 与 `+=` 等价，stdout 被静默丢弃——拍②补锁「双非空」路径才现形；同一轮老师教材简化片段丢条件行也被用户 trace 抓出，扫描双向成立。（M3-02 实战）
+- **通知不是唤醒**：inject = 信息入账（下次请求可见），send = 行为驱动（开新 turn）；驱动权只在 inbox，否则 agent 半夜自作主张；契约的另一半写在工具描述里——一部分协议在模型读得到的文字里。（M3-02 讨论确认）
 
 ## 遗留问题 / 待办
 

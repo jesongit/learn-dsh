@@ -69,7 +69,8 @@ export function renderResult(result: BashRunResult): string {
   if (result.signal !== null) markers.push(`[killed by signal: ${result.signal}]`)
   else if (result.exitCode !== 0) markers.push(`[exit code: ${result.exitCode}]`)
   if (markers.length === 0) return body      // 全绿：正文即全部
-  return body + '\n' + markers.join('\n')    // 业务结果全在正文，is_error 保持 False
+  if (!body.endsWith('\n')) body += '\n'     // 按需补换行：数据自带尾换行就不重复
+  return body + markers.join('\n')           // 业务结果全在正文，is_error 保持 False
 }
 ```
 
@@ -102,12 +103,34 @@ function validateBashArgs(args: {...}): void {
 作业区（AI）：[tests/test_tool_bash.py](../../tests/test_tool_bash.py)——`render_result` 四分支 + `bash_run` 四层行为（含 `monkeypatch` 模拟 spawn 故障），交付时全部 skip 挂起。`[exit code: 1]` 那条是本节灵魂：**非零退出 is_error=False**。
 已备好（AI）：文件骨架与 TODO 注释；M3-01 的 `@tool` 直接可用——装饰即注册，测试从 `REGISTRY` 全管线走。
 
+<a id="lesson-log"></a>
+### 编码实录
+
+本节 TODO(S)(T) 全程从零手写（无参考实现，只有骨架注释+伪代码）。`bash_run` 一次成型（echo 与 spawn 故障两条直接绿）；`render_result` 经四轮迭代收敛，**bug 谱系本身就是教材**：
+
+1. **哨兵提前 return 吞标记**——`(no output)` 后直接 return，`[timed out]` 永远到不了。教训：哨兵是 body 的**替换**，不是函数的出口；
+2. **`stdout.strip()` + `"\n".join`**——strip 违反「原文打头」（尾部换行是数据），join 表达「无条件分隔」而 spec 要「按需追加」，双换行当场现形；
+3. **哨兵时序回归 + 空 body 条件缺失**——重构时哨兵跑回 stderr 合入之前（只查 stdout）；`"".endswith("\n")` 为 False，空 body 被补出行首孤换行。后者被前者遮住，修 A 冒出 B；
+4. **`body =` 顶掉 stdout**——stdout 与 stderr 同时非空时 stdout 被整体丢弃。四条测试恰好都是单侧非空，`=` 与 `+=` 在它们眼里等价——**拍②扫描（测试没覆盖的路径）补锁一条后现形**。
+
+**教材勘误一次**：老师简化 §3 片段时丢了 harness 的 `if (!body.endsWith('\n'))` 条件行，用户顺着双换行 trace 逼到原文核实抓出——「注释说 A、代码做 B」的扫描方法对老师同样成立，测试/spec/片段三方不一致时，以原文为准。
+
+<a id="qa-errow-layering"></a>
+### 对话疑点
+
+**Q1 非零退出怎么会 stderr 为空？** 退出码和 stdout/stderr 是**三个互相独立的信道**：退出码是进程留给父进程的机器可读状态，不承诺失败原因写在 stderr。grep 无匹配、diff 有差异、test 条件判断都**故意**静默 + 用退出码表达结果（协议化设计，方便脚本 `if grep …`）。「非零退出 + 全静默」是一大类命令的正常形态——也正是最欺骗模型的形态：只看到 `(no output)` 会误判「成功但没输出」，看到 `(no output)\n[exit code: 1]` 才知道「失败了，换姿势」。
+
+**Q2 为什么不能先删换行再加（strip-then-join）？** 对模型而言换行大概率无损（语义级阅读），这个直觉基本成立；但 (a) 尾换行是数据的一部分，spec 与四条测试已锁定契约，**改契约必须显式**（spec+测试+理由一起动），不能以实现捷径溜入；(b) `rstrip` 是全剥——`printf "a\n\n\n"` 的两个真实空行也被删。**落点修正**：「模型需要多高保真」是 M4 压缩策略的开题公案，不是本节的实现自由度。
+
+**Q3 接缝加的换行不也动了数据吗？** 影响分两类：**删**不可恢复（模型无法回答「输出以换行结尾吗」）；**加**落在两段事实的边界且紧跟标签——`"hi\n[exit code: 1]"` 里那个 `\n` 是标记的第一个字节，不产生关于命令输出的错误信念。判据不是「字节变没变」而是「**会不会引发错误推断**」，精化版：损失不可怕，**静默的损失才可怕**——截断有通告 + spill 文件找回，哨兵是「空」的显式编码，rstrip 却无通告无找回。`boom\n` 的尾换行还演示了双重身份：它是数据字节，兼職分隔符；输入 `boom`（无尾换行）时信封补一个，两种输入同一输出——结构归一化边界，数据保真。
+
+**Q4 后台任务为什么「通知不是唤醒」？** `run_in_background` 立即返回 task id；完成时 harness `onTaskDone` 回调 `agent.inject()`——往会话写一条持久事实（含下一步提示「用 bash_output 读取」）。inject 是**信息入账**（下次请求可见），不是**行为驱动**（不碰 inbox、不唤醒挂起的 wait_for_queued、不开新 turn）。三个理由：①驱动权只在 inbox（用户/steering），后台完成也能唤醒 = agent 半夜自作主张；②时序——turn 进行中通告插不进已发出的请求，空闲时唤醒又引入 mid-stream 竞态，最坏代价只是「下轮才被看见」；③append-only 天然幂等。**契约的另一半写在工具描述里**（「poll it with bash_output」）——一部分协议不在代码里，在模型读得到的文字里。PAgent 对应物：`inject()`（M1-03）与 `send()` 的分工。
+
 ## 6. 运行与验证
 
-- 基线：`uv run pytest -q` → **26 passed, 8 skipped**
-- 实现 TODO(S) → 解锁 `render_result` 四条（纯函数，改完秒验）
-- 实现 TODO(T) → 解锁 `bash_run` 四条；两条「is_error=False」的分层断言是本节考点
-- 全绿 = **34 passed**，喊 AI 拍②；亲手点在 M3-03：把 `bash_run` 接进真 agent，看模型真的敲命令
+- 重写完成：`uv run pytest -q` → **35 passed**（含拍②补锁的「stdout+stderr 同时非空」路径，全程不回归）
+- `bash_run("echo hi")` / `("exit 1")` / 超时三条可手动跑一遍，对照正文标记与 is_error 分层
+- 收官亲手点在 M3-03：把 `bash_run` 接进真 agent，看模型真的敲命令
 
 ## 7. TS vs Python 差异与坑
 

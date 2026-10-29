@@ -41,6 +41,24 @@ from pagent.tools import tool
 # def render_result(stdout: str, stderr: str, exit_code: int,
 #                   timed_out: bool = False) -> str: ...
 
+def render_result(stdout: str, stderr: str, exit_code: int, timed_out: bool = False) -> str:
+    # 把bash结果拼成字符串
+    body = stdout
+    if stderr:
+        nn = "" if not body or body.endswith("\n") else "\n"
+        body += f"{nn}[stderr]\n{stderr}"
+    if not body:
+        body = "(no output)"
+        
+    markers = []
+    if timed_out:
+        markers.append(f"[timed out]")
+    if exit_code != 0:
+        markers.append(f"[exit code: {exit_code}]")
+    if markers:
+      nn = "" if body.endswith("\n") else "\n"
+      return body + nn + "\n".join(markers)
+    return body
 
 # TODO(T)：bash_run 工具 —— subprocess 执行 + 错误分层（本节主菜之二）
 # ①语义：@tool 注册（M3-01 产物第一次接真活）；subprocess.run(command,
@@ -63,3 +81,11 @@ from pagent.tools import tool
 #   bash_run("sleep 99", timeout_sec=1) → 含 "[timed out]"
 # @tool(description="在宿主机 shell 里执行一条命令，返回 stdout/stderr/退出码")
 # def bash_run(command: str, timeout_sec: int = 30) -> str: ...
+
+@tool(description="在宿主机 shell 里执行一条命令，返回 stdout/stderr/退出码")
+def bash_run(command: str, timeout_sec: int = 30) -> str:
+    try:
+      proc = subprocess.run(command, shell=True, capture_output=True, text=True, timeout=timeout_sec)
+    except subprocess.TimeoutExpired:
+        return render_result("", "", 0, timed_out=True)
+    return render_result(proc.stdout, proc.stderr, proc.returncode)
