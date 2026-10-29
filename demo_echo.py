@@ -40,6 +40,9 @@ from pagent.types import (
 )
 from pagent.mock import text_response, tool_call_response
 
+# 每个 chunk 之间的人为停顿（秒）——给 /stop、/steer 留出手速窗口；0 = 火箭模式
+STREAM_DELAY = 0.05
+
 
 class EchoAdapter(LLMAdapter):
     """规则式假模型：替模型回答——按「对话进行到哪一步」选规则。
@@ -122,16 +125,20 @@ class TerminalUI(LLMAdapter):
     """终端回显装饰器：包住任何 adapter，流式期间把文本增量打到屏幕。
 
     seam 可以叠 seam——UI 不改变模型行为，只是"旁听"chunk 流。
-    （这就是 M2 网页流式渲染的雏形。）
+    delay：每个 chunk 之间的人为停顿（秒）——给 /stop、/steer 留出手速窗口；
+    0 = 火箭模式。seam 叠 seam 的又一次兑现：降速也是一层包装。
     """
 
-    def __init__(self, inner: LLMAdapter) -> None:
+    def __init__(self, inner: LLMAdapter, delay: float = 0.0) -> None:
         self._inner = inner
+        self._delay = delay
 
     async def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
         async for chunk in self._inner.stream(options):
             if isinstance(chunk, TextDelta):
                 print(chunk.text, end="", flush=True)
+            if self._delay:
+                await asyncio.sleep(self._delay)
             yield chunk
 
 
@@ -151,7 +158,7 @@ def build_agent() -> Agent:
     #   llm.register(["deepseek-chat"], TerminalUI(DeepSeekAdapter(api_key)))
     #   Agent(..., model="deepseek-chat")
     # （mock 时代的 echo 工具注册与 EchoAdapter 接线整体退役——文件里保留作纪念）
-    llm.register(["deepseek-chat"], TerminalUI(DeepSeekAdapter(api_key)))
+    llm.register(["deepseek-chat"], TerminalUI(DeepSeekAdapter(api_key), delay=STREAM_DELAY))
 
     agent = Agent(
         id="deepseek",
@@ -167,57 +174,63 @@ def build_agent() -> Agent:
 
 async def main() -> None:
     agent = build_agent()
-    agent.start()  # 永续循环常驻——不再是「一行输入 asyncio.run 一次」
-    print("PAgent echo demo（quit 退出；/stop 中断；试试：echo 你好）")
+    agent.start()  # 永续循环常驻
+    loop = asyncio.get_running_loop()
+
+    # ── 输入线程：随时可打字，命令与消息经队列进入事件循环 ──────────
+    # （旧版等 turn 结束才回到 input——/stop、/steer 永远打不中；改为并发输入）
+    inbox: asyncio.Queue[str] = asyncio.Queue()
+
+    def read_stdin() -> None:
+        while True:
+            line = input()
+            asyncio.run_coroutine_threadsafe(inbox.put(line), loop)
+
+    import threading
+    threading.Thread(target=read_stdin, daemon=True).start()
+
+    # ── 事件播报员：轮询会话日志，播报 turn 结束与错误详情 ────────────
+    async def reporter() -> None:
+        seen = 0
+        while True:
+            await asyncio.sleep(0.1)
+            events = agent.session.events
+            for event in events[seen:]:
+                if event.type == "turn/end":
+                    print(f"\n  [turn{event.data['turn']} 结束，原因: {event.data['reason']}]")
+                    if event.data["reason"] == "error":
+                        errs = [e for e in events if e.type == "error"]
+                        if errs:
+                            print(f"  [错误详情] {errs[-1].data['message']}")
+                    print("你> ", end="", flush=True)
+            seen = len(events)
+
+    reporter_task = asyncio.create_task(reporter())
+
+    print("PAgent echo demo（quit 退出；/stop 中断；/steer <指示> 插话）")
+    print("你> ", end="", flush=True)
     while True:
         try:
-            line = await asyncio.to_thread(input, "你> ")  # input 阻塞，丢线程里跑
+            line = (await inbox.get()).strip()
         except (EOFError, KeyboardInterrupt):
             agent.abort()
             break
-        line = line.strip()
         if not line:
             continue
         if line == "quit":
             agent.abort()
             break
         if line == "/stop":
-            print("  [abort] 中断当前 turn…")
+            print("\n  [abort] 中断当前 turn…")
             agent.abort()
             continue
-        # ── TODO(H)：/steer 命令 ── M2-03 亲手写 ────────────────────
-        # 语义：把 "/steer " 之后的内容作为插话转给 agent.steer()
-        #       （steer 只在 turn 运行中走快速通道——空闲时自动降级为排队）。
-        # 伪代码：
-        #   if line.startswith("/steer "):
-        #       agent.steer([TextBlock(text=line[7:])])
-        #       print("  [steer] 已插话"); continue
         if line.startswith("/steer "):
-            input_str = line.removeprefix("/steer ")
-            agent.steer([TextBlock(text=input_str)])
-            print(f"  [steer] 已插话 {input_str}")
+            steer_text = line.removeprefix("/steer ")
+            agent.steer([TextBlock(text=steer_text)])
+            print(f"\n  [steer] 已插话 {steer_text}")
             continue
-
-        # 其他语句直接发进去
         agent.send([TextBlock(text=line)])
         print("PAgent> ", end="", flush=True)
-        # 等 turn 落幕（粗轮询；事件驱动版 M2-03 再打磨）
-        # 注意：真模型有延迟——发出后日志可能还是空的，不能用 events[-1] 起手
-        seen = len(agent.session.events)
-        last = None
-        for _ in range(300):  # 最多等 30s
-            await asyncio.sleep(0.1)
-            events = agent.session.events
-            if len(events) > seen and events[-1].type == "turn/end":
-                last = events[-1]
-                break
-        print()
-        if last is not None and last.type == "turn/end":
-            print(f"  [turn{last.data['turn']} 结束，原因: {last.data['reason']}]")
-            if last.data["reason"] == "error":
-                errs = [e for e in agent.session.events if e.type == "error"]
-                if errs:
-                    print(f"  [错误详情] {errs[-1].data['message']}")
     print("再见。")
 
 
