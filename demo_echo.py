@@ -185,11 +185,6 @@ async def main() -> None:
             print("  [abort] 中断当前 turn…")
             agent.abort()
             continue
-        if line.startswith("/steer "):
-            input_str = line.removeprefix("/steer ")
-            agent.steer([TextBlock(text=input_str)])
-            print(f"  [steer] 已插话 {input_str}")
-            continue
         # ── TODO(H)：/steer 命令 ── M2-03 亲手写 ────────────────────
         # 语义：把 "/steer " 之后的内容作为插话转给 agent.steer()
         #       （steer 只在 turn 运行中走快速通道——空闲时自动降级为排队）。
@@ -197,6 +192,11 @@ async def main() -> None:
         #   if line.startswith("/steer "):
         #       agent.steer([TextBlock(text=line[7:])])
         #       print("  [steer] 已插话"); continue
+        if line.startswith("/steer "):
+            input_str = line.removeprefix("/steer ")
+            agent.steer([TextBlock(text=input_str)])
+            print(f"  [steer] 已插话 {input_str}")
+            continue
 
         # 其他语句直接发进去
         agent.send([TextBlock(text=line)])
