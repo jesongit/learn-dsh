@@ -35,20 +35,23 @@ class ToolOutcome:
 
 @dataclass(frozen=True)
 class ToolDef:
-    """@tool 登记后的一行记录：说明书（pydantic 模型）+ 实现函数。
+    """注册表里的一行记录——两种来源，构造后同一种形态：
 
-    model 从函数签名自动生成（TODO(P)）——它身兼二职：
-    给模型看的 JSON Schema 的来源（model_json_schema()）、
-    执行前的参数校验器（model_validate）。
+    - @tool（代码派生）：model 从签名生成，parameters = model 的 JSON Schema；
+    - register()（数据到达）：model=None，parameters 原样采用，零加工。
+
+    model 身兼二职（仅代码派生工具有）：说明书的来源（model_json_schema()）、
+    宿主侧的校验器（model_validate）。None = 契约以数据到达，校验归 server。
     """
 
     name: str
     description: str
-    model: type[BaseModel]
+    parameters: dict
     fn: Callable
+    model: type[BaseModel] | None
 
 
-# 模块级注册表：@tool 装饰即登记（TODO(Q)）；ToolService.schemas() 来这里聚合。
+# 唯一注册表：@tool 与 register() 都写入这里（构造形态不同，存储形态同一）。
 REGISTRY: dict[str, ToolDef] = {}
 
 
@@ -74,8 +77,10 @@ REGISTRY: dict[str, ToolDef] = {}
 # ②伪代码：
 #   def tool(description):            # 带参装饰器 = 两层函数
 #       def wrap(fn):
+#           model = model_from_fn(fn)
 #           REGISTRY[fn.__name__] = ToolDef(fn.__name__, description,
-#                                           model_from_fn(fn), fn)
+#                                           model.model_json_schema(),  # 说明书
+#                                           fn, model)                  # 实现 + 校验器
 #           return fn
 #       return wrap
 # ③样例：
@@ -101,11 +106,13 @@ def tool(description: str):
     """带参装饰器两层结构：tool(description) 先返回真正包住 fn 的 wrap。"""
 
     def wrap(fn: Callable):
+        model = model_from_fn(fn)
         REGISTRY[fn.__name__] = ToolDef(
             name=fn.__name__,
             description=description,
-            model=model_from_fn(fn),
+            parameters=model.model_json_schema(),  # 说明书：从模型导出（wire 形态）
             fn=fn,
+            model=model,  # 有代码 → 宿主侧校验
         )
         return fn  # 原函数原样返回——它仍能被直接调用和单测
 
@@ -113,60 +120,56 @@ def tool(description: str):
 
 
 class ToolService:
-    def __init__(self) -> None:
-        # name -> (description, parameters, fn)  ← M1 手写说明书的老路，保留作回归护栏
-        self._tools: dict[str, tuple[str, dict, Callable]] = {}
+    """唯一注册表是模块级 REGISTRY：@tool（代码派生契约）与 register()
+    （数据到达契约）都写入它——本类只是它的读取与执行门面。
+    v0 简化：所有实例共享一张表（单 agent 场景）；多 agent 隔离留给未来。
+    """
 
     def register(
         self, name: str, description: str, parameters: dict, fn: Callable
     ) -> None:
-        """登记一个工具。fn 接收关键字参数，返回 str（或可 JSON 化的对象）。"""
-        self._tools[name] = (description, parameters, fn)
+        """裸说明书入口：契约以数据到达（MCP 等外来工具的形状）。
 
-    # ── TODO(R)：注册表聚合 + 校验先行 —— 升级 schemas()/execute()，签名不变 ──
+        model=None = 宿主侧无代码可校验——校验是 server 的事
+        （校验跟代码走）；parameters 原样采用，零加工。
+        """
+        REGISTRY[name] = ToolDef(
+            name=name, description=description, parameters=parameters, fn=fn, model=None
+        )
+
+    # ── TODO(R)：单表门面 + 校验跟代码走 —— 升级 schemas()/execute()，签名不变 ──
     # ①语义：
-    #   schemas()：在 M1 列表之外，把 REGISTRY 里每个 ToolDef 也转成
-    #              ToolSchema——parameters 用 model.model_json_schema()。
-    #   execute()：名字命中 REGISTRY 时先 model_validate(arguments)；
-    #              ValidationError → is_error 的 ToolOutcome，消息精确到
-    #              字段（「limit 应为 integer，收到 str」级别，模型一次改对）；
-    #              校验通过 → 用校验后的值调 fn（后续处理与 M1 相同）。
-    #              M1 老路（self._tools）行为一字不改。
-    # ②样例：arguments = {"limit": "abc"} →
+    #   schemas()：遍历唯一注册表 REGISTRY，每个 ToolDef 转成 ToolSchema——
+    #              parameters 已经是 JSON Schema（构造时定型），直接用。
+    #   execute()：单次查表；命中且 model 非 None（代码派生契约）→ 先
+    #              model_validate：ValidationError → 字段级 is_error 结果，
+    #              校验通过用 model_dump() 的值调 fn；model 为 None（数据
+    #              到达契约）→ 不校验，参数原样给 fn（校验跟代码走）。
+    # ②样例：@tool 工具 arguments = {"limit": "abc"} →
     #   ToolOutcome(call_id, is_error=True,
     #               content=[TextBlock("参数校验失败：limit … integer …")])
 
     # ── 参考实现（暂存供学习：读懂后删除，对照上方 TODO(R) 重写）─────────────
 
     def schemas(self) -> list[ToolSchema]:
-        """两路合并：M1 手写说明书 + M3 注册表聚合，一起发给模型。"""
-        schemas = [
-            ToolSchema(name=name, description=description, parameters=parameters)
-            for name, (description, parameters, _fn) in self._tools.items()
-        ]
-        schemas += [
-            ToolSchema(
-                name=d.name,
-                description=d.description,
-                # model_json_schema() 附带 title 等元数据——wire format 容忍，无害
-                parameters=d.model.model_json_schema(),
-            )
+        """唯一注册表的全部说明书，随请求发给模型。"""
+        return [
+            ToolSchema(name=d.name, description=d.description, parameters=d.parameters)
             for d in REGISTRY.values()
         ]
-        return schemas
 
     async def execute(self, call_id: str, name: str, arguments: dict) -> ToolOutcome:
         d = REGISTRY.get(name)
-        entry = self._tools.get(name)
-        if d is None and entry is None:
+        if d is None:
             return ToolOutcome(
                 call_id=call_id,
                 content=[TextBlock(text=f"未知工具：{name}")],
                 is_error=True,
             )
 
-        # M3 注册表工具：pydantic 校验先行——校验失败是字段级错误数据，不是异常
-        if d is not None:
+        # 校验跟代码走：model 非 None（代码派生契约）才在宿主侧校验；
+        # ValidationError 的消息自带字段级细节——模型一次改对
+        if d.model is not None:
             try:
                 validated = d.model.model_validate(arguments)
             except ValidationError as e:
@@ -175,16 +178,12 @@ class ToolService:
                     content=[TextBlock(text=f"参数校验失败：{e}")],
                     is_error=True,
                 )
-            # 用校验后的值调用：model_dump() 把没传的可选字段按默认值补全；
-            # 多余的键被 pydantic 默认忽略（与 harness validateArgs 的
-            # extra-keys-allowed 语义对齐）
+            # 用校验后的值调用：可选字段按默认值补全；多余键被忽略
+            # （与 harness validateArgs 的 extra-keys-allowed 语义对齐）
             arguments = validated.model_dump()
-            fn = d.fn
-        else:
-            _description, _parameters, fn = entry
 
         try:
-            result = fn(**arguments)
+            result = d.fn(**arguments)
             if inspect.isawaitable(result):
                 result = await result
         except Exception as e:  # 工具炸了不炸 loop：错误也回给模型，让它自行调整

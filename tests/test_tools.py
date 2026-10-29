@@ -77,8 +77,26 @@ def test_missing_required_becomes_error():
     assert "b" in outcome.content[0].text
 
 
+def test_bare_schema_tool_not_host_validated():
+    """契约：裸说明书工具（model=None）宿主侧不校验——校验跟代码走。
+
+    register() 是外来工具的形状（MCP：server 有代码，server 负责校验）；
+    宿主手里只有数据契约，代行校验反而越权。参数原样到达 fn。
+    """
+    tools = ToolService()
+    tools.register(
+        "ext_tool",
+        "外来工具形状",
+        {"type": "object", "properties": {"n": {"type": "integer"}}},
+        lambda **kw: f"收到 {kw.get('n')!r}",
+    )
+    outcome = asyncio.run(tools.execute("c1", "ext_tool", {"n": "abc"}))
+    assert not outcome.is_error
+    assert "'abc'" in outcome.content[0].text  # 说明书说 int 也不拦——原样到达 fn
+
+
 def test_m1_register_path_still_works():
-    """回归护栏：M1 手写说明书的 register() 不被本次升级破坏（无需解锁）。"""
+    """契约：register() 裸说明书入口全链路——登记、出说明书、执行（无需解锁）。"""
     tools = ToolService()
     tools.register("echo", "原样返回", {"type": "object"}, lambda **kw: kw.get("text", ""))
     schema = next(s for s in tools.schemas() if s.name == "echo")
