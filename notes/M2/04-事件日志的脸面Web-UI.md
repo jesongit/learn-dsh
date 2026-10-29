@@ -29,7 +29,7 @@ data: {"type":"assistant/chunk","data":{"chunk":{"text":"今天"}}}
 data: {"type":"turn/end","data":{"turn":1,"reason":"completed"}}
 ```
 
-浏览器端 `EventSource` 自动解析帧、自动重连——终端 runner 里手工搭的输入线程和轮询播报员，在 Web 里全部白送。**并发输入天然成立**，这正是 harness 做 Web 的原因之一。（「seam 叠 seam」的讨论见 M2-03 教材——Web 是 session 日志的又一层数据消费者，与 TerminalUI 平级。）
+浏览器端 `EventSource` 自动解析帧、自动重连——终端 runner 里手工搭的输入线程和轮询播报员，在 Web 里全部白送。**并发输入天然成立**，这正是 harness 做 Web 的原因之一。（「seam 叠 seam」的讨论见 [M2-03 教材「对话疑点」](03-真模型终端对话.md#qa-seam-stack)——Web 是 session 日志的又一层数据消费者，与 TerminalUI 平级。）
 
 ```mermaid
 %%{init: {"fontFamily": "Microsoft YaHei"}}%%
