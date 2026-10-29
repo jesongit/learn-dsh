@@ -35,28 +35,30 @@ data: {"type":"turn/end","data":{"turn":1,"reason":"completed"}}
 %%{init: {"fontFamily": "Microsoft YaHei"}}%%
 sequenceDiagram
     participant B as 浏览器
-    participant F as fastapi
-    participant A as Agent（常驻）
+    participant F as fastapi 端点协程
+    participant L as run_loop 任务（常驻）
+    Note over F,L: 同一进程 · 同一 asyncio 事件循环（uvicorn）<br/>F→L 的“通信”= 普通函数调用 + 共享对象（inbox/session）
     B->>F: POST /send {text}
-    F->>A: agent.send(...)
-    A->>A: run_turn（user/message 落日志，流式输出中）
+    F->>L: agent.send(...) 入队
+    L->>L: 唤醒 → run_turn（流式输出中）
     B->>F: POST /steer {text}
-    F->>A: agent.steer(...)
-    A->>A: step 之间消化插话<br/>后续请求带上 <steering>
+    F->>L: agent.steer(...) 入队
+    L->>L: step 之间消化插话<br/>后续请求带上 <steering>
+    B->>F: GET /events?seq=n<br/>一次请求 · 长连接
+    loop 服务端轮询（归属 fastapi：端点内 0.1s 协程）
+        F-->>B: data: {日志增量}
+    end
     alt 用户点了停止
         B->>F: POST /stop
-        F->>A: agent.abort() → task.cancel()
-        A->>A: 体面收场：step/end +<br/>turn/end (aborted)
+        F->>L: agent.abort() → task.cancel()
+        L->>L: 体面收场：step/end +<br/>turn/end (aborted)
     else 模型说完
-        A->>A: turn/end (completed)
+        L->>L: turn/end (completed)
     end
-    loop SSE 事件流（页面打开即开始，与以上全部并行）
-        B->>F: GET /events?seq=n
-        F-->>B: data: {一切增量事件，含 turn/end}
-    end
+    F-->>B: data: {turn/end …}（也走 SSE 长连接）
 ```
 
-读图要点：**Agent 产生的信息到达浏览器的唯一通道是 SSE 事件流**——A 与 B 之间没有直达箭头（对照 M2-03 修过的同类错误：模型和循环从不直接碰日志，这里 agent 也从不直接碰浏览器）；abort 的 `cancel` 是异步注入，收场落在 run_turn 内部，`turn/end` 依旧经日志 → SSE 到达页面。
+读图三要点：① **常驻的是 run_loop 任务**——`agent.start()` 就是 `create_task(run_loop)`，Agent 对象只是容器；② **SSE 轮询归属 fastapi**——代码在 `/events` 端点的 async generator 里，浏览器只发一次 GET（长连接），之后被动收帧；③ **F 与 L 在同一事件循环里**——uvicorn 驱动 fastapi，lifespan 里 create_task 出 run_loop，两者是同进程内的两个任务，不是两个服务。
 
 ## 4. 页面与范围
 
