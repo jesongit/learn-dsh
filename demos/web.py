@@ -19,6 +19,7 @@ import asyncio
 import json
 import os
 from contextlib import asynccontextmanager
+from dataclasses import asdict
 
 import uvicorn
 from demos.common import build_agent, load_env
@@ -27,7 +28,7 @@ from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
 from pagent.agent import Agent
-from pagent.types import TextBlock, TextDelta
+from pagent.types import TextBlock
 
 # ── 全局 agent：lifespan 启动时创建，全应用共享同一个常驻循环 ────────────
 agent: Agent | None = None
@@ -54,15 +55,6 @@ class Msg(BaseModel):
     """请求体模型——pydantic 的牛刀小试，M3 它就是主角。"""
 
     text: str
-
-
-def serialize(event) -> dict:
-    """日志事件 → 浏览器友好的 JSON（chunk 对象只保留 UI 需要的 text）。"""
-    # 过滤+序列化 日志 -> 浏览器
-    data = dict(event.data)
-    chunk = data.get("chunk")
-    data["chunk"] = {"text": chunk.text} if isinstance(chunk, TextDelta) else None
-    return {"type": event.type, "seq": event.seq, "data": data}
 
 
 @app.post("/send")
@@ -116,7 +108,7 @@ def index() -> HTMLResponse:
 #           if await request.is_disconnected(): break    # 页面关了就停
 #           events = agent.session.events
 #           for e in events[seq:]:
-#               yield f"data: {json.dumps(serialize(e), ensure_ascii=False)}\n\n"
+#               yield f"data: {json.dumps(asdict(e), ensure_ascii=False)}\n\n"
 #           seq = len(events)
 #           await asyncio.sleep(0.1)                     # 轮询间隔
 #   return StreamingResponse(gen(), media_type="text/event-stream",
@@ -131,11 +123,11 @@ def events(request: Request):
                 break
             events = agent.session.events
             for e in events[seq:]:
-                yield f"data: {json.dumps(serialize(e), ensure_ascii=False)}\n\n"
+                event_data = json.dumps(asdict(e), ensure_ascii=False)
+                yield f"data: {event_data}\n\n"
             seq = len(events)
             await asyncio.sleep(0.1)
     return StreamingResponse(gen(), media_type="text/event-stream", headers={"Cache-Control": "no-cache"})
-    # raise NotImplementedError("TODO(A)")
 
 
 # ── 内嵌页面：官方聊天风格的极简版（HTML/CSS/JS 单字符串，无构建工具）────

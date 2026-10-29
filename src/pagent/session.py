@@ -47,6 +47,32 @@ class Session:
     def events(self) -> list[SessionEvent]:
         return self._events
 
+    # ── 事件词汇表：全仓库所有 append 的调用形态（新增事件先在此登记）────
+    # 写入方只有两处：loop.run_turn（一个 turn 的完整叙事）与 agent.inject。
+    # 按 turn 生命周期排列。seq / time 由 append 自动补齐，下表只列 data。
+    # 「●」= 该字段装 dataclass 对象（进程内数据，跨进程边界——如 Web SSE
+    # 序列化——必须先转纯 JSON）；未标者均为 JSON 原生类型（int/str/bool/dict）。
+    #
+    #   type               data 字段
+    #   ─────────────────  ────────────────────────────────────────────
+    #   user/message       content: list[ContentBlock]          ●  领取用户输入
+    #   turn/start         turn: int, trigger: {"kind": "message"}  开轮
+    #   step/start         turn: int, step: int                 一步开张
+    #   assistant/chunk    turn, step, chunk: StreamChunk       ●  六种 chunk 之一（回放/UI 数据，不进投影）
+    #   assistant/message  turn, step, content: list[ContentBlock]  ●  组装完毕的完整回复
+    #   tool/call          turn, step, call_id: str, name: str,
+    #                      arguments: str                          模型产出的原始 JSON 串
+    #   tool/result        turn, step, call_id: str,
+    #                      content: list[ContentBlock],         ●
+    #                      is_error: bool                          失败也是数据，不是异常
+    #   steering/message   turn, content: list[ContentBlock]    ●  运行中插话
+    #   context/message    content: list[ContentBlock]          ●  agent.inject 注入，不触发 turn
+    #   step/end           turn, step                           一步收工
+    #   error              turn, step, message: str             模型调用失败（step/end 之后）
+    #   turn/end           turn, reason: str                    completed|error|aborted|max-steps
+    #
+    # 记忆钩子：凡 content / chunk 字段必装 dataclass 对象，其余字段全是
+    # JSON 原生类型——序列化边界只需照顾前两类字段。
     def append(self, type: str, data: dict) -> SessionEvent:
         event = SessionEvent(
             type=type,

@@ -5,20 +5,19 @@
 
 ## 当前状态
 
-- **当前里程碑**：M2 · 第 4 节「事件日志的脸面：Web UI」——已交付（M2 收官验收载体），等用户实现
+- **当前里程碑**：**M2 全部完成** ✅（4 节全绿收官）；M3 · 第 1 节「工具说明书自动生成」已交付全套，等用户学习
 - **最近更新**：2026-10-29
-- **下一步**：用户完成 [demos/web.py](demos/web.py) TODO(A)（`GET /events` SSE 端点——fastapi 核心一课，伪代码在注释里），`uv run pytest -v` **19 passed 不回归**，然后 `uv run python -m demos.web` 浏览器亲手点（打字机流式 / 停止 / 插话）。全过则 **M2 关闭**，进 M3-01。讲解见 [notes/M2/04-事件日志的脸面Web-UI.md](notes/M2/04-事件日志的脸面Web-UI.md)
-- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（19 passed）；`.env` 已配置；依赖新增 httpx / fastapi / uvicorn
-- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（16 passed）；`.env` 已配置
+- **下一步**：用户学习 [notes/M3/01-工具说明书自动生成.md](notes/M3/01-工具说明书自动生成.md)，亲手实现 `@tool` 装饰器 + pydantic 校验管线（TODO 骨架在 `src/pagent/tools.py` 与 `tests/test_tools.py`）；M3-02 教材已备
+- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（19 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
 
 ## 里程碑进度
 
 | 里程碑 | 状态 | 备注 |
 |---|---|---|
 | M0 建立地图与设计 | 已完成 | 总览课（notes/00）+ 设计三问已定；UI 体验亲手点可随时补 |
-| M1 最小 Agent Loop | ✅ 完成 | 4 节全绿；12 passed；loop.spec 场景复现 6 个（1/5/6/7/12/14）；echo demo + 冒烟通过 |
-| M2 真实 LLM + 流式 + 中断 | 进行中 | 第 1~3 节 ✅（19 passed；并发 runner + 降速窗口两修复）；第 4 节「Web UI」已交付（M2 收官验收载体） |
-| M3 工具系统 | 未开始 | M3-01 教材已备（作业区待补充） |
+| M1 最小 Agent Loop | ✅ 完成 | 4 节全绿；loop.spec 场景复现 6 个；echo demo + 冒烟通过 |
+| M2 真实 LLM + 流式 + 中断 | ✅ 完成 | 4 节全绿（19 passed）；终端流式/中断/插话 + Web UI 收官（send/steer/stop/复活全链路机械验证通过）；serialize() 讨论收敛为一行 asdict 边界 |
+| M3 工具系统 | 进行中 | 第 1 节已交付（脚手架+作业区+基线）；M3-02 教材已备 |
 | M4 上下文管理 | 未开始 | |
 | M5 子代理 | 未开始 | |
 | M6 会话持久化 | 未开始 | |
@@ -38,6 +37,10 @@
 - **冒烟验证了接口形状**：真实 DeepSeek 响应被手工拆成 StreamChunk 流，M1 定的词汇表装下了真实模型。（M1 收尾）
 - **seam 落地**：换模型 = 换注册的 adapter，loop 一行不改——types.py + adapter.py 已就位。
 - **测试是行为规格**：没有测试保护的工作代码只是碰巧没暴露的坏代码——本节回归测试两次当场抓雷。
+- **日志只有一个，投影可以有很多**：derive_messages 是模型视角投影，Web 序列化是浏览器视角投影；两者取材互补（chunk 不进模型投影、恰是浏览器主粮）。过滤住在消费者（JS 按事件类型筛显示），序列化边界只做类型转换。（M2-04 讨论确认）
+- **isinstance 是分派不是过滤**：认对象选转换方式 ≠ 决定给不给看；但同一行的「只留 text / 其余置 None」是字段级取舍——「取哪些=类型规则，取多少=字段取舍」两维度再次落地。（M2-04 讨论确认）
+- **asdict 递归白送、ClassVar 不入字段**：SessionEvent 本身是 dataclass，`json.dumps(asdict(e))` 一行转净全事件；ClassVar 属性照常可读，需要时边界手动补 `{"type": b.type, **asdict(b)}`。域模型不迁就序列化——判别字段属于 wire 模型（M3 pydantic）。（M2-04 讨论确认）
+- **排障先看服务端终端**：uvicorn 的访问日志与 traceback 全在 `uv run` 的控制台；浏览器 EventSource 静默重连会掩盖服务端崩溃（页面零报错 ≠ 服务端没炸）。端口占用 winerror 10048 = 上个实例还活着。（M2-04 实战）
 
 ## 遗留问题 / 待办
 
@@ -73,3 +76,5 @@
 | 2026-10-29 | 交付节奏：当节脚手架+作业区就绪立即 commit，用户即可开始；用户确认完成后才收尾+备下一节。骨架注释规范：解释清楚+复杂处伪代码，不给可直接复制的代码 | 用户反馈：不等准备、注释过详 |
 | 2026-10-29 | 环境布局定档：整个工作区仅一处 Python 环境（pagent/.venv，uv 项目）；.env/.env.example 均在 pagent/ 目录；所有 pagent 命令在 pagent/ 下执行 | 用户指出环境/密钥位置混乱，收拢为单一处 |
 | 2026-10-29 | 布局修订（用户要求）：项目扁平化到根目录——pyproject/src/tests/demo/.env 全部上移，删除 pagent/ 二级文件夹；命令在根目录执行 | 用户反馈：根目录即项目，不要二级文件夹 |
+| 2026-10-29 | session.py 的 append 上方登记「事件词汇表」（12 种调用形态 + ● 标记 dataclass 字段 + 不变式） | 用户提议；事件形态的唯一登记处，新增事件先登记再落笔；● 标记直接服务序列化边界 |
+| 2026-10-29 | Web SSE 边界删除 serialize()，收敛为 `json.dumps(asdict(e))` 一行 | 边界只做转换不做筛选（过滤归浏览器 JS）；词汇表不变式保证覆盖全部 12 种事件；原字段级裁剪无消费方 |

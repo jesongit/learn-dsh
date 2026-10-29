@@ -32,6 +32,7 @@ class LLMAdapter(ABC):
 
     @abstractmethod
     def stream(self, options: GenerateOptions) -> AsyncIterator[StreamChunk]:
+        # 抽象函数，要求对应 Adapter 必须实现 stream 方法
         raise NotImplementedError
 
 

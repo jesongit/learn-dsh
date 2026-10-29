@@ -73,20 +73,48 @@ sequenceDiagram
 |---|---|---|---|
 | A | [demos/web.py](../../demos/web.py) | `GET /events` SSE 端点：轮询 session 增量 → 逐帧 yield（伪代码在注释里） | 断线检测 + seq 续播 |
 
-已备好（AI）：app 与 lifespan（agent 拉起/收场）、三个命令端点（`/send` `/steer` `/stop`，pydantic 请求体）、`serialize()`（日志事件 → 浏览器 JSON）、内嵌聊天页面（HTML/CSS/JS：EventSource 消费 SSE、打字机渲染、命令栏）。
+已备好（AI）：app 与 lifespan（agent 拉起/收场）、三个命令端点（`/send` `/steer` `/stop`，pydantic 请求体）、内嵌聊天页面（HTML/CSS/JS：EventSource 消费 SSE、打字机渲染、命令栏）。交付稿原带 `serialize()` 转换器，实现中被**整个删除**——最终边界一行 `json.dumps(asdict(e))`，始末见下面实录与对话疑点 Q1–Q3。
+
+<a id="lesson-log"></a>
+### 编码实录
+
+- **TODO(A) 一次到位**：轮询增量 + `?seq=` 续播 + `is_disconnected` 断线检测，与伪代码完全对齐——终端 runner 里手搭的「输入线程 + 轮询播报员」在 Web 里全部白送，体感成立。
+- **首跑翻车两连**：①「运行会报错」的真相是**端口占用**（残留实例占着 8000，winerror 10048）——旧终端没关就重跑，新实例绑定失败即退，报错一闪而过；② SSE **首帧即崩**：日志第一条 `user/message` 的 `content` 装 `TextBlock` dataclass，`json.dumps` 抛 `TypeError`——帧一个都没发出去，浏览器 `EventSource` **静默重连无限循环**，页面零报错。错误信号全在服务端终端（uvicorn 的 traceback）——「没有日志系统吗」的真相：日志一直都在，位置就是 `uv run python -m demos.web` 的控制台；浏览器与服务端的观察窗口对不上，才是「没法定位」的体感来源。
+- **serialize() 的生与死**：初始版只特殊处理 chunk（`isinstance` 分派 + 裁剪 + 其余置 `None`），`content` 漏检。修复讨论走了三步——补 `asdict` 转换 → 追问「这行是过滤还是分派」→ 整函数删除，收敛为一行 `json.dumps(asdict(e), ensure_ascii=False)`：`SessionEvent` 本身是 dataclass，`asdict` 递归转净一切；对全部 12 种事件成立靠的是 session.py 词汇表的**不变式**（data 里只有 dataclass 与 JSON 原生类型，凡 `content`/`chunk` 字段必装 dataclass）。
+- **AI 收尾清理（脚手架层）**：删除 `serialize()` 遗留的未用 import（`SessionEvent`、`TextDelta`）、注释残骸（`# raise NotImplementedError`）、陈旧伪代码行，import 归位。核心 `gen()` 未动。
+
+<a id="qa-serialize-projection"></a>
+### 对话疑点
+
+**Q1 序列化就是投影吗？** 同一原则、不同投影：日志是唯一事实来源，消费者各自推导自己的视图——`derive_messages()` 是**模型视角**投影（选类型、变形状为带角色消息），SSE 序列化是**浏览器视角**投影（全类型、转 JSON、`seq` 断点续播）。两者取材恰好互补：`assistant/chunk` 被模型投影排除（模型只认终态消息），却正是浏览器打字机的主粮——「不进模型投影 ≠ 没人消费」。
+
+**Q2 过滤的层次。** 事件级：SSE 全量发送，筛选住在浏览器 JS（只渲染 chunk 与 turn/end，其余收下即弃）——服务端当笨管道，消费者想多渲染什么改 JS 即可。字段级：初始 `serialize()` 里 `isinstance(chunk, TextDelta)` 那行其实是两个动作——`isinstance` 本职是**类型分派**（认出对象好选转换方式，不是过滤），但「只留 text 扔 index」「其余五种 chunk 置 `None`」是真·字段级取舍。对照 M1-02 的投影两维度：**取哪些 = 类型规则，取多少 = 字段取舍**。
+
+**Q3 `asdict` 与 ClassVar。** `type: ClassVar[str]` 不是 dataclass 字段，`asdict` 输出不含它——但属性照常可读，边界需要时手动补：`{"type": b.type, **asdict(b)}`。为何不把 `ClassVar` 改成普通字段迁就序列化？`ClassVar` 表达的是「类级常量而非实例状态」，改成字段等于允许 `TextBlock(text="x", type="tool-call")` 自报假身份；**序列化适配域模型，而不是相反**——类型判别字段属于「天生要上线」的 wire 模型（M3 的 pydantic 那是它们的地盘）。
 
 ## 6. 运行与验证
 
-- 基线（已验证）：`uv run pytest -v` → **19 passed 不回归**（Web 是新增消费者，不碰任何既有逻辑）
-- TODO(A) 完成 + `uv run python -m demos.web` + 浏览器 `http://127.0.0.1:8000`
-- 亲手点（M2 收官验收）：打字机流式输出 → 输出中点「停止」→ `reason=aborted` → 长回答中「插话」→ 观察改道 → **流式 ✓ 中断 ✓ 插话 ✓ = M2 关闭**
+- 基线与回归：`uv run pytest -q` → **19 passed**（交付时与收尾时各验一次）
+- TODO(A) 完成 + `uv run python -m demos.web` + 浏览器 `http://127.0.0.1:8000`：打字机流式 ✓（亲手点确认）
+- 全链路机械验证（AI 用 httpx 按时间轴打点：send → 1.2s steer → 1.2s stop → 1.5s send），事件日志摘要：
+
+```text
+turn 1: user/message → step1（assistant 已完整作答）→ steering/message 落日志
+        → step2 启动（steered = 欠模型一次请求 ✓）→ /stop 正中 step2
+        → turn/end reason=aborted ✓（零 traceback，取消被 run_turn 体面收场）
+turn 2: 复活补丁拉起新循环 → user/message → assistant「复活成功」
+        → turn/end reason=completed ✓
+```
+
+- 流式 ✓ 中断 ✓ 插话 ✓ 复活 ✓ = **M2 关闭**（停止/插话的端点级行为由机械验证覆盖；浏览器手感可随时自己再点）
 
 ## 7. TS vs Python 差异与坑
 
 - `@app.get` 的端点用普通 `def` 也能返回 async generator 的 StreamingResponse——fastapi 只在需要 await 时才要求 `async def`。
-- `EventSource` 自带重连并回传 `Last-Event-ID`；我们用 `?seq=` 查询参数简化续播——生产做法见待探索。
+- `dataclasses.asdict` 只认字段（`ClassVar` 不入内）但会递归下钻 dict/list 与嵌套 dataclass——TS 侧 zod schema 显式声明，没有「注解派生 + 类变量排除」这组语义；Python 的坑是 ClassVar 被排除，甜头是递归白送。
+- `EventSource` 自带重连并回传 `Last-Event-ID`；我们用 `?seq=` 查询参数简化续播——生产做法见待探索。**坑**：自动重连是静默的，服务端流崩溃时浏览器零报错无限重连，排障必须看服务端终端。
 - 旧写法 `@app.on_event("startup")` 已弃用，用 lifespan 上下文管理器。
-- Windows 控制台编码（cp936）不会再烦你——浏览器是 UTF-8。
+- Windows 控制台编码（cp936）不会再烦你——浏览器是 UTF-8；但 Git Bash 里 curl 直接 `-d '中文JSON'` 会因编码坏体（"error parsing the body"），写文件或用 httpx 传。
 
 ## 8. 待探索清单
 
@@ -99,4 +127,5 @@ sequenceDiagram
 
 - UI 是日志的投影：Web 端零状态，四个端点全部薄转发。
 - SSE 角色反转完成：客户端（M2-01）+ 服务端（本节）= 流式协议两副面孔。
-- 遗留：工具 wire format（M3 主菜）。
+- 序列化边界一行化：`json.dumps(asdict(e))`——边界只做转换不做筛选，筛选归消费者；对全部事件成立的保证是词汇表不变式（data 只含 dataclass 与 JSON 原生类型）。
+- 遗留：工具 wire format（M3 主菜）；abort 后存活语义方案 b（见「已知差异」）；Session 订阅（待探索首位）。
