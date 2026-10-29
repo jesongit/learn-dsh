@@ -214,6 +214,10 @@ async def main() -> None:
         print()
         if last is not None and last.type == "turn/end":
             print(f"  [turn{last.data['turn']} 结束，原因: {last.data['reason']}]")
+            if last.data["reason"] == "error":
+                errs = [e for e in agent.session.events if e.type == "error"]
+                if errs:
+                    print(f"  [错误详情] {errs[-1].data['message']}")
     print("再见。")
 
 
