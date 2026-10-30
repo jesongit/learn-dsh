@@ -4,6 +4,9 @@ deepseek-harness/
 # 密钥与环境变量
 .env
 
+# 会话存档（运行时产物）
+*.jsonl
+
 # Python
 __pycache__/
 *.pyc

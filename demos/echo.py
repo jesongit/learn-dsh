@@ -114,6 +114,14 @@ class EchoAdapter(LLMAdapter):
 
 async def main() -> None:
     agent = build_agent()
+    # ── M6-01：恢复 ── 存档存在就换上恢复的会话，再拉起常驻循环
+    from pagent.persistence import load, save
+    SAVE_PATH = "echo_session.jsonl"
+    import os
+    if os.path.exists(SAVE_PATH):
+        agent.session = load(SAVE_PATH)
+        print(f"  [恢复] 读回 {len(agent.session.events)} 条事件，继续上次对话")
+
     agent.start()  # 永续循环常驻
 
     # ── 输入协程：随时可打字，命令与消息经队列进入事件循环 ──────────
@@ -131,7 +139,7 @@ async def main() -> None:
 
     # ── 事件播报员：轮询会话日志，播报 turn 结束与错误详情 ────────────
     async def reporter() -> None:
-        seen = 0
+        seen = len(agent.session.events)
         while True:
             await asyncio.sleep(0.1)
             events = agent.session.events
@@ -143,6 +151,7 @@ async def main() -> None:
                         if errs:
                             print(f"  [错误详情] {errs[-1].data['message']}")
                     print("你> ", end="", flush=True)
+                    save(agent.session, SAVE_PATH)
             seen = len(events)
 
     reporter_task = asyncio.create_task(reporter())
@@ -171,6 +180,7 @@ async def main() -> None:
             continue
         agent.send([TextBlock(text=line)])
         print("PAgent> ", end="", flush=True)
+    save(agent.session, SAVE_PATH)
     print("再见。")
 
 
