@@ -67,11 +67,22 @@ def translate_event(event: dict) -> list[StreamChunk]:
 
 作业区（AI）：[tests/test_usage.py](../../tests/test_usage.py)——三条 skip 挂起（G 一条、M 一条、N 一条），按 G→M→N 顺序解锁。M 的用例顺带锁「chunk 事件里不再泄漏 UsageChunk」。
 
+<a id="lesson-log"></a>
+### 编码实录
+
+- **TODO(M) 一次到位**：`isinstance(chunk, UsageChunk)` 分流 + `continue`，账本与内容分流一次写对。
+- **TODO(G) 的分支死区**：usage 分支写对了内容，却放在 `if choices == []: return []` **之后**——usage 帧恰好长着空 choices，永远走不到。TODO 注释里的「分支顺序提示」说的就是它。修法：挪到函数最前，空 choices 帧与随 finish 帧两种形状都能接住。「提前返回」是分支顺序里最容易埋死代码的形态（M3-02 哨兵提前 return 的近亲）。
+- **TODO(N) 的两连笔误**：`event.data["usage"]["input_token"]`——对 dataclass 用了字典下标（`["input_token"]` 还拼错成单数）。正确姿势是属性访问 `.input_tokens`；session.py 词汇表的 ● 标记（dataclass 字段）就是提示「这里不是 dict」。
+- **老师测试的场景设计错误一次**：原用例「send 一次 + 两条纯文本预录响应」断言两笔账——但纯文本不调工具、方向盘直接关轮，第二个响应永远不会被请求。改成工具流场景（step 1 工具调用 → 续步 → step 2 收尾）两笔账才真实发生。**「方向盘欠一次请求才再来一步」是构造多请求测试场景的钥匙**；测试归 AI 维护（M3-01 决策），当场修。
+
+<a id="qa-usage"></a>
+### 对话疑点
+
+**Q11 记账事件为什么从 chunk 流里「分流」而不是混着记？** 账本与内容是两种消费视图：内容（chunk）喂组装器和 UI 回放，账本（usage）喂预算决策。混在一条流里，投影方每次都要 `isinstance` 过滤——分流成专门事件类型后，`usage_report` 的投影规则干净到一行 `if type ==`。与 M1-02 的「投影按类型规则取」同源：**事件类型的粒度 = 消费方的过滤粒度**。
+
 ## 6. 运行与验证
 
-- 基线：`uv run pytest -q` → **39 passed, 3 skipped**
-- 实现 TODO(G)（先采样真实 wire，再改断言+实现）→ 解锁第一条
-- 实现 TODO(M)、TODO(N) → 全绿 **42 passed**
+- 全绿：`uv run pytest -q` → **42 passed**（真实 wire 采样待 M4-02 收官亲手点时对照；mock 形状已锁）
 - M4 收官亲手点在 M4-02：塞爆上下文，对比压缩触发前后的行为与账单
 
 ## 7. TS vs Python 差异与坑

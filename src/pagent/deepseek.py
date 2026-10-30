@@ -223,6 +223,10 @@ class DeepSeekAdapter(LLMAdapter):
 
     @staticmethod
     def translate_event(event: dict) -> list[StreamChunk]:
+        if "usage" in event:
+            input_token = event["usage"]["prompt_tokens"]
+            output_token = event["usage"]["completion_tokens"]
+            return [UsageChunk(usage=TokenUsage(input_tokens=input_token, output_tokens=output_token))]
         choices = event["choices"]
         if choices == []:
             return []
@@ -235,10 +239,6 @@ class DeepSeekAdapter(LLMAdapter):
         if "tool_calls" in delta:
             return [ToolCallDelta(tc["index"], tc.get("id", ""), tc["function"].get("name", None), 
                                   tc["function"].get("arguments", "")) for tc in delta["tool_calls"]]
-        if "usage" in event:
-            input_token = event["usage"]["prompt_tokens"]
-            output_token = event["usage"]["completion_tokens"]
-            return [UsageChunk(usage=TokenUsage(input_tokens=input_token, output_tokens=output_token))]
         return []
         # raise NotImplementedError("TODO(C)")
 

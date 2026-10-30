@@ -5,11 +5,10 @@
 
 ## 当前状态
 
-- **当前里程碑**：**M3 全部完成** ✅（3 节，39 passed）；M4 · 第 1 节「token 记账」已交付全套，等用户学习
+- **当前里程碑**：M4 · 第 1 节「token 记账」**完成** ✅（42 passed）；第 2 节「压缩」已交付全套，等用户学习
 - **最近更新**：2026-10-30
-- **下一步**：用户学习 [notes/M4/01-上下文是硬预算token记账.md](notes/M4/01-上下文是硬预算token记账.md)，亲手实现 TODO(G) usage 帧接回 + TODO(M) 记账事件 + TODO(N) usage 报表；M4-02 教材（压缩）已备
-- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（39 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic
-- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（19 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
+- **下一步**：用户学习 [notes/M4/02-压缩：把旧叙事折叠成摘要.md](notes/M4/02-压缩：把旧叙事折叠成摘要.md)，亲手实现压缩触发、哨兵事件与投影哨兵规则（TODO 见该节教材）；M5-01 教材已备
+- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（42 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
 
 ## 里程碑进度
 
@@ -19,7 +18,7 @@
 | M1 最小 Agent Loop | ✅ 完成 | 4 节全绿；loop.spec 场景复现 6 个；echo demo + 冒烟通过 |
 | M2 真实 LLM + 流式 + 中断 | ✅ 完成 | 4 节全绿（19 passed）；终端流式/中断/插话 + Web UI 收官（send/steer/stop/复活全链路机械验证通过）；serialize() 讨论收敛为一行 asdict 边界 |
 | M3 工具系统 | ✅ 完成 | 3 节全绿（39 passed）：@tool+pydantic、bash_run+错误分层、wire format+真工具接入；「新增工具=带注解函数+@tool」达成 |
-| M4 上下文管理 | 进行中 | 第 1 节已交付（token 记账）；M4-02 教材已备 |
+| M4 上下文管理 | 进行中 | 第 1 节 ✅（42 passed；usage 分流记账 + usage_report 投影）；第 2 节已交付（压缩，M4 收官）；M5-01 教材已备 |
 | M5 子代理 | 未开始 | |
 | M6 会话持久化 | 未开始 | |
 

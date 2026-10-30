@@ -104,8 +104,8 @@ class Session:
         input_token = output_token = 0
         for event in self._events:
             if event.type == "assistant/usage":
-                input_token += event.data["usage"]["input_token"]
-                output_token += event.data["usage"]["output_token"]
+                input_token += event.data["usage"].input_tokens
+                output_token += event.data["usage"].output_tokens
 
         return {"input_tokens": input_token, "output_tokens": output_token}
 
