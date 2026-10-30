@@ -5,10 +5,10 @@
 
 ## 当前状态
 
-- **当前里程碑**：M4 · 第 2 节「压缩」**完成** ✅（46 passed）；M5 · 第 1 节「委派」已交付全套，等用户学习
+- **当前里程碑**：M5 · 第 1 节「委派」**完成** ✅（49 passed）；M6 · 第 1 节「会话持久化」已交付全套，等用户学习——**路线图最后一节**
 - **最近更新**：2026-10-30
-- **下一步**：用户学习 [notes/M5/01-委派：把子任务交给另一个自己.md](notes/M5/01-委派：把子任务交给另一个自己.md)，亲手实现 TODO(R) 子级装配回收 + TODO(S) make_spawn_tool（脚手架在 `src/pagent/tool_subagent.py` 与 `tests/test_subagent.py`）；M6-01 教材已备
-- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（46 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
+- **下一步**：用户学习 [notes/M6/01-会话持久化：日志离开进程.md](notes/M6/01-会话持久化：日志离开进程.md)，亲手实现 TODO(T) save + TODO(U) 按类型重建 + TODO(V) load（脚手架在 `src/pagent/persistence.py` 与 `tests/test_persistence.py`）；收官亲手点：重启进程恢复对话。M6 后进「PAgent 2.0」规划（决策记录已排：REGISTRY 对象化 → 事件总线 → 分包）
+- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（49 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
 
 ## 里程碑进度
 
@@ -19,8 +19,8 @@
 | M2 真实 LLM + 流式 + 中断 | ✅ 完成 | 4 节全绿（19 passed）；终端流式/中断/插话 + Web UI 收官（send/steer/stop/复活全链路机械验证通过）；serialize() 讨论收敛为一行 asdict 边界 |
 | M3 工具系统 | ✅ 完成 | 3 节全绿（39 passed）：@tool+pydantic、bash_run+错误分层、wire format+真工具接入；「新增工具=带注解函数+@tool」达成 |
 | M4 上下文管理 | ✅ 完成 | 2 节全绿（46 passed）：usage 分流记账 + 投影；压缩哨兵 + 投影重建 + 预算触发；两条词汇表不变式入库 |
-| M5 子代理 | 进行中 | 第 1 节已交付（委派 seam，spawn 工具）；M6-01 教材已备 |
-| M6 会话持久化 | 未开始 | |
+| M5 子代理 | ✅ 完成 | 1 节全绿（49 passed）：委派 seam + spawn 工具 + 工厂模式三梯度；「@tool 薄壳、能力内核」原则入库 |
+| M6 会话持久化 | 进行中 | 第 1 节已交付（JSONL 双向边界）；路线图最后一节，收官后进 PAgent 2.0 规划 |
 
 ## 关键收获
 
@@ -51,6 +51,9 @@
 - **投影规则内嵌假设必须留档**：「遇哨兵重建」内嵌「哨兵覆盖其前全部」；策略升级（保新轮）须与投影规则成对修订，否则静默丢消息。未声明的不变量，迟早被新策略当作不存在。（M4-02 讨论确认）
 - **事件类型 = 投影区分度 = 摘要前缀**：一套分类学三层呈现；投影按类型分派而非探测键名——类型枚举漏新事件是显性遗漏，键名探测的失败是静默泄漏（harness attempt 先例）。（M4-02 讨论确认）
 - **错误被兜底通道吞掉时去读日志**：loop「错误当数据」铁律把异常原文存进 error 事件——期望行为没发生且 turn 以 error 收场，先读 error 事件的 message。（M4-02 实战）
+- **@tool 永远是薄壳，能力沉淀为内核函数**：模型可见的参数契约进薄壳（factory 依赖注入参数不能进模型参数表），能力内核独立可测可复用（harness 同款分层：服务包与工具包分离）。（M5-01 讨论确认）
+- **工厂三梯度**：造数据（fixture）→ 造类（create_model）→ 造协作体（spawn 工厂）；创建推迟 + 细节可替换居其一方才值得，否则抽象税。（M5-01 讨论确认）
+- **装配时注册 vs 运行时实例**：make_spawn_tool 调一次登记一个工具；每次 spawn 创建的是子 Agent 实例（0 次新注册）。工具 schema 面向父模型、子级 system_prompt 面向子模型——两份说明别混。（M5-01 讨论确认）
 
 ## 遗留问题 / 待办
 

@@ -22,6 +22,8 @@ from typing import ClassVar, Literal
 Role = Literal["system", "user", "assistant"]
 FinishReason = Literal["stop", "tool-calls", "max-tokens", "aborted"]
 
+def read_text_block(block_list: list[ContentBlock]) -> str:
+    return "".join([block.text for block in block_list if isinstance(block, TextBlock)])
 
 # ---------- 内容块：一条消息由若干内容块组成 ----------
 

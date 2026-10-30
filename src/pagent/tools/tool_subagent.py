@@ -16,8 +16,9 @@ from collections.abc import Callable
 
 from pagent.core.agent import Agent
 from pagent.core.loop import run_until_idle
+from pagent.core.session import Session
 from pagent.tools.registry import tool
-from pagent.core.types import TextBlock
+from pagent.core.types import TextBlock, read_text_block
 
 
 # TODO(R)：子级装配、运行与回收 —— M5-01 核心 ────────────────────────────
@@ -36,6 +37,22 @@ from pagent.core.types import TextBlock
 # ③样例：factory 造出的子级（mock）回复「子任务完成」→
 #   run_subagent(factory, "总结数据") == "[completed] 子任务完成"
 # async def run_subagent(factory: Callable[[], Agent], task: str) -> str: ...
+async def run_subagent(factory: Callable[[], Agent], task: str) -> str:
+    child = factory() # 使用工厂函数创建一个subagent
+    child.send([TextBlock(text=task)]) # 发任务
+    await run_until_idle(child) # 等待任务完成
+    reason = final = None
+    child_session: Session = child.session
+    for event in child_session.events:
+        if event.type == "turn/end":
+            reason = event.data["reason"]
+        elif event.type == "assistant/message":
+            final = read_text_block(event.data["content"])
+        if reason is not None and final is not None:
+            break
+    reason = reason if reason is not None else "error"
+    final = final if final is not None else ""
+    return f"[{reason}] {final}"
 
 
 # TODO(S)：@tool 委派工具 —— 面向模型的 Consumer ────────────────────────
@@ -49,3 +66,16 @@ from pagent.core.types import TextBlock
 #           return await run_subagent(factory, task)
 #       return spawn
 # def make_spawn_tool(factory: Callable[[], Agent]): ...
+
+def make_spawn_tool(factory: Callable[[], Agent]):
+    """给子级工厂（factory: () -> Agent）造一个 @tool spawn()。
+
+    description 是契约的一半：告诉模型何时委派、委派后只有终态结论回来
+    （没有中间过程）。
+    """
+    # bash tool 的依赖是现成的，所以可以直接 @tool 装饰——导入即登记
+    # spawn tool 的依赖是 Agent, Agent 是现成构建的，所以需要工厂先构建好，才能装配注册
+    @tool(description="把独立子任务委派给子 agent，返回其终态结论")
+    async def spawn(task: str) -> str:
+        return await run_subagent(factory, task)
+    return spawn

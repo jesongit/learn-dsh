@@ -39,7 +39,7 @@ def _make_factory(sessions: list[Session], reply: str = "子任务完成"):
     return factory
 
 
-@pytest.mark.skip(reason="TODO(R) 实现后删除本行")
+
 def test_run_subagent_returns_terminal_result():
     """契约：终态语义 = [reason] + 最终回复；子级是独立事件叙事。"""
     from pagent.tools.tool_subagent import run_subagent
@@ -56,7 +56,7 @@ def test_run_subagent_returns_terminal_result():
     assert types.count("turn/end") == 1  # 跑到终态即停
 
 
-@pytest.mark.skip(reason="TODO(S) 实现后删除本行")
+
 def test_spawn_via_tool_service():
     """契约：make_spawn_tool 注册后，经 ToolService 全管线可用（async 工具被 execute await）。"""
     from pagent.tools.tool_subagent import make_spawn_tool
@@ -72,7 +72,7 @@ def test_spawn_via_tool_service():
     assert "[completed] 子任务完成" in outcome.content[0].text
 
 
-@pytest.mark.skip(reason="TODO(R) 实现后删除本行")
+
 def test_child_failure_surfaces_as_terminal():
     """契约：子级失败也是终态数据——[error] 回收，父级不炸。"""
     from pagent.tools.tool_subagent import run_subagent
