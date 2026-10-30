@@ -46,16 +46,19 @@ def test_simple_turn_ordered_events():
 
     types = [e.type for e in session.events]
 
-    # 规格 1：事件骨架按序——把 chunk 抽掉后应恰好是这个序列
-    skeleton = [t for t in types if t != "assistant/chunk"]
+    # 规格 1：事件骨架按序——把内容流（chunk）与记账（usage）抽掉后
+    # 应恰好是这个序列（M4-01 起 UsageChunk 分流成 assistant/usage 事件）
+    skeleton = [t for t in types if t not in ("assistant/chunk", "assistant/usage")]
     assert skeleton == [
         "user/message", "turn/start", "step/start",
         "assistant/message", "step/end", "turn/end",
     ], f"事件骨架不符：{skeleton}"
 
-    # chunk 全数落日志：text_response("你好") 共 6 个 chunk
-    # （BlockStart、2×TextDelta、BlockEnd、Usage、Finish——每个都记，不只 delta）
-    assert types.count("assistant/chunk") == 6, f"chunk 落日志数不对：{types.count('assistant/chunk')}"
+    # chunk 全数落日志：text_response("你好") 共 6 个 chunk，其中 1 个
+    # UsageChunk 分流去账本，剩 5 个记 assistant/chunk
+    # （BlockStart、2×TextDelta、BlockEnd、Finish——每个都记，不只 delta）
+    assert types.count("assistant/chunk") == 5, f"chunk 落日志数不对：{types.count('assistant/chunk')}"
+    assert types.count("assistant/usage") == 1, "usage 应分流记账，不混在 chunk 里"
 
     # chunk 位于 step/start 之后、assistant/message 之前（流式期间产生的记录）
     assert types.index("step/start") < types.index("assistant/chunk") < types.index("assistant/message")

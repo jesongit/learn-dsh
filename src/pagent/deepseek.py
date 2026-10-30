@@ -22,9 +22,11 @@ from pagent.types import (
     StreamChunk,
     TextBlock,
     TextDelta,
+    TokenUsage,
     ToolCallBlock,
     ToolCallDelta,
     ToolResultBlock,
+    UsageChunk,
 )
 
 API_URL = "https://api.deepseek.com/chat/completions"
@@ -168,7 +170,7 @@ class DeepSeekAdapter(LLMAdapter):
         if options.system is not None:
             messages.append({"role": "system", "content": options.system})
         for m in options.messages:
-            messages.extend(DeepSeekAdapter._render_message(m))
+            messages.extend(self._render_message(m))
         body = {"model": options.model, "messages": messages, "stream": True}
 
         if options.tools:
@@ -233,6 +235,10 @@ class DeepSeekAdapter(LLMAdapter):
         if "tool_calls" in delta:
             return [ToolCallDelta(tc["index"], tc.get("id", ""), tc["function"].get("name", None), 
                                   tc["function"].get("arguments", "")) for tc in delta["tool_calls"]]
+        if "usage" in event:
+            input_token = event["usage"]["prompt_tokens"]
+            output_token = event["usage"]["completion_tokens"]
+            return [UsageChunk(usage=TokenUsage(input_tokens=input_token, output_tokens=output_token))]
         return []
         # raise NotImplementedError("TODO(C)")
 

@@ -100,6 +100,14 @@ class Session:
     #       累加 e.data["usage"].input_tokens / output_tokens
     #   return {"input_tokens": 总输入, "output_tokens": 总输出}
     # def usage_report(self) -> dict: ...
+    def usage_report(self) -> dict:
+        input_token = output_token = 0
+        for event in self._events:
+            if event.type == "assistant/usage":
+                input_token += event.data["usage"]["input_token"]
+                output_token += event.data["usage"]["output_token"]
+
+        return {"input_tokens": input_token, "output_tokens": output_token}
 
     def derive_messages(self) -> list[Message]:
         """把日志投影成模型历史（对照 Session.deriveMessages()）。

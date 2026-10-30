@@ -21,7 +21,7 @@ import asyncio
 import json
 from pagent.agent import Agent
 from pagent.assembler import BlockAssembler
-from pagent.types import GenerateOptions, ToolCallBlock
+from pagent.types import GenerateOptions, ToolCallBlock, UsageChunk
 
 
 async def run_loop(agent: Agent) -> None:
@@ -121,6 +121,9 @@ async def run_turn(agent: Agent) -> None:
             #     再 assembler.push(chunk)
             #     （顺序别反：先记账再组装——「模型可见即已记录」）
             async for chunk in agent.llm.stream(request):
+                if isinstance(chunk, UsageChunk):
+                    session.append("assistant/usage", {"turn": turn, "step": step, "usage": chunk.usage})
+                    continue
                 session.append("assistant/chunk", {"turn": turn, "step": step, "chunk": chunk})
                 assembler.push(chunk)
 
