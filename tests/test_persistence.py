@@ -67,7 +67,7 @@ def _build_rich_session() -> Session:
     return s
 
 
-@pytest.mark.skip(reason="TODO(T) 实现后删除本行")
+
 def test_save_writes_header_then_events(tmp_path):
     """契约：首行 header，其后一行一事件，行数 = 事件数 + 1。"""
     from pagent.persistence import save
@@ -82,7 +82,7 @@ def test_save_writes_header_then_events(tmp_path):
     assert json.loads(lines[1])["type"] == "user/message"
 
 
-@pytest.mark.skip(reason="TODO(U) 实现后删除本行")
+
 def test_revive_block_and_chunk():
     """契约：dict → dataclass，嵌套（BlockEnd.block / ToolResultBlock.content）递归。"""
     from pagent.persistence import _revive_block, _revive_chunk
@@ -96,7 +96,7 @@ def test_revive_block_and_chunk():
     assert chunk == BlockEnd(index=1, block=TextBlock(text="你好"))
 
 
-@pytest.mark.skip(reason="TODO(V) 实现后删除本行")
+
 def test_load_roundtrip_full_vocabulary(tmp_path):
     """契约：save → load 的往返，词汇表全事件无损（time 除外——新时间戳合法）。"""
     from pagent.persistence import load, save
@@ -112,7 +112,7 @@ def test_load_roundtrip_full_vocabulary(tmp_path):
     assert a == b, "往返后事件序列必须逐条相等（time 除外）"
 
 
-@pytest.mark.skip(reason="TODO(V) 实现后删除本行")
+
 def test_restored_projection_matches_original(tmp_path):
     """契约：恢复后的一切投影照常工作——derive_messages 逐条相等（M6 的验收核心）。"""
     from pagent.persistence import load, save

@@ -14,6 +14,7 @@ dict 必须重建为词汇表类型。session.py 的事件词汇表就是字段�
 
 from __future__ import annotations
 
+from dataclasses import asdict
 import json
 
 from pagent.core.session import Session
@@ -34,16 +35,59 @@ from pagent.core.types import (
 
 _HEADER = {"v": 1, "type": "header"}
 
+# 五类叙事事件（进投影、占预算）——save 打块标签、load 重建块的共用清单
+_CONTENT_EVENTS = {"user/message", "assistant/message", "tool/result",
+                   "steering/message", "context/message"}
+
 
 # ── TODO(T)：保存 —— M6-01 热身 ──────────────────────────────────────────
-# ①语义：首行写版本 header，其后每行 json.dumps(asdict(event))——M3-01 的
-#        asdict 老朋友负责把 ● 字段（dataclass）转净。编码显式 utf-8
-#        （M4-01 疑点 Q7 的兑现：文件是编码未知的消费者）。
+# ①语义：首行写版本 header，其后每行一个事件的纯 JSON。**content 块必须
+#        打类型标签**：asdict 不认 ClassVar（M3-01 验证过），裸 asdict 的块
+#        没有 "type" 键，恢复时按 type 分派就会 KeyError——所以五类 content
+#        事件的 data["content"] 要用 _dump_block 重写（type 用 b.type 补上，
+#        tool-result 递归）；chunk 事件不动（_revive_chunk 按特征键分派，
+#        不依赖标签）。编码显式 utf-8（M4-01 疑点 Q7 的兑现）。
 # ②伪代码：
 #   with open(path, "w", encoding="utf-8") as f:
 #       f.write(json.dumps(_HEADER, ensure_ascii=False) + "\n")
-#       对每个事件：f.write(json.dumps(asdict(event), ensure_ascii=False) + "\n")
+#       对每个事件：
+#           data = asdict(event)["data"]   # ← 只取 data；asdict 全量会双层嵌套信封
+#           if event.type in _CONTENT_EVENTS:
+#               data["content"] = [_dump_block(b) for b in event.data["content"]]
+#           elif event.type == "assistant/chunk":
+#               data["chunk"] = _dump_chunk(event.data["chunk"])  # BlockEnd 内嵌块同样要标签
+#           f.write(json.dumps({"type": …, "seq": …, "time": …, "data": data}, …))
+# def _dump_block(b: ContentBlock) -> dict: ...
+# def _dump_chunk(c: StreamChunk) -> dict: ...
 # def save(session: Session, path: str) -> None: ...
+def _dump_block(b: ContentBlock) -> dict:
+    if isinstance(b, TextBlock):
+        return {"type": "text", "text": b.text}
+    elif isinstance(b, ToolCallBlock):
+        return {"type": "tool-call", "id": b.id, "name": b.name, "arguments": b.arguments}
+    elif isinstance(b, ToolResultBlock):
+        blocks = [_dump_block(bb) for bb in b.content]
+        return {"type": "tool-result", "tool_call_id": b.tool_call_id, "content": blocks, "is_error": b.is_error}
+
+
+def _dump_chunk(c: StreamChunk) -> dict:
+    d = asdict(c)
+    if isinstance(c, BlockEnd):
+        d["block"] = _dump_block(c.block)   # asdict 会剥掉内嵌块的 ClassVar 标签——补回
+    return d
+
+
+def save(session: Session, path: str) -> None:
+    with open(path, "w", encoding="utf-8") as f:
+        f.write(json.dumps(_HEADER, ensure_ascii=False) + "\n")
+        for event in session.events:
+            data = asdict(event)["data"]    # ← 只取 data；asdict 全量会把信封双层嵌套
+            if event.type in _CONTENT_EVENTS:
+                data["content"] = [_dump_block(b) for b in event.data["content"]]
+            elif event.type == "assistant/chunk":
+                data["chunk"] = _dump_chunk(event.data["chunk"])
+            f.write(json.dumps({"type": event.type, "seq": event.seq,
+                                "time": event.time, "data": data}, ensure_ascii=False) + "\n")
 
 
 # ── TODO(U)：按类型重建 —— 恢复方向的主菜 ────────────────────────────────
@@ -63,6 +107,32 @@ _HEADER = {"v": 1, "type": "header"}
 # def _revive_block(b: dict) -> ContentBlock: ...
 # def _revive_chunk(c: dict) -> StreamChunk: ...
 
+def _revive_block(b: dict) -> ContentBlock:
+    if b["type"] == "text":
+        return TextBlock(text=b["text"])
+    elif b["type"] == "tool-call":
+        return ToolCallBlock(id=b["id"], name=b["name"], arguments=b["arguments"])
+    elif b["type"] == "tool-result":
+        blocks = [_revive_block(bb) for bb in b["content"]]
+        return ToolResultBlock(content=blocks, tool_call_id=b["tool_call_id"], is_error=b["is_error"])
+
+def _revive_chunk(c: dict) -> StreamChunk:
+    if "block_type" in c:
+        return BlockStart(index=c["index"], block_type=c["block_type"])
+    elif "text" in c:
+        return TextDelta(index=c["index"], text=c["text"])
+    elif "id" in c:
+        return ToolCallDelta(index=c["index"], id=c["id"], name=c["name"], arguments_delta=c["arguments_delta"])
+    elif "block" in c:
+        block = _revive_block(c["block"])
+        return BlockEnd(block=block, index=c["index"])
+    elif "usage" in c:
+        usage = TokenUsage(input_tokens=c["usage"]["input_tokens"], 
+                           output_tokens=c["usage"]["output_tokens"])
+        return UsageChunk(usage=usage)
+    elif "reason" in c:
+        return Finish(reason=c["reason"])
+
 
 # ── TODO(V)：恢复 —— 组装 ────────────────────────────────────────────────
 # ①语义：读文件 → 首行校验 header（v ≠ 1 或缺 header → ValueError，防把
@@ -81,3 +151,23 @@ _HEADER = {"v": 1, "type": "header"}
 #       session.append(raw["type"], data)
 #   return session
 # def load(path: str) -> Session: ...
+
+def load(path: str) -> Session:
+    session = Session("restored")
+    with open(path, "r", encoding="utf-8") as f:
+        header_line = f.readline()
+        header = json.loads(header_line)
+        if header != _HEADER:
+            raise ValueError(f"Invalid header: {header}")
+        for line in f:
+            raw = json.loads(line)
+            event_type = raw["type"]
+            data = raw["data"]
+            if event_type in _CONTENT_EVENTS:
+                data["content"] = [_revive_block(b) for b in data["content"]]
+            elif event_type == "assistant/chunk":
+                data["chunk"] = _revive_chunk(data["chunk"])
+            elif event_type == "assistant/usage":
+                data["usage"] = TokenUsage(input_tokens=data["usage"]["input_tokens"], output_tokens=data["usage"]["output_tokens"])
+            session.append(event_type, data)
+    return session
