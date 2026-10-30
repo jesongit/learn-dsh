@@ -5,10 +5,12 @@
 
 ## 当前状态
 
-- **当前里程碑**：M5 · 第 1 节「委派」**完成** ✅（49 passed）；M6 · 第 1 节「会话持久化」已交付全套，等用户学习——**路线图最后一节**
+## 当前状态
+
+- **当前里程碑**：**PAgent 1.0 路线图全部完成** 🎓（M0–M6 全部收官，53 passed）
 - **最近更新**：2026-10-30
-- **下一步**：用户学习 [notes/M6/01-会话持久化：日志离开进程.md](notes/M6/01-会话持久化：日志离开进程.md)，亲手实现 TODO(T) save + TODO(U) 按类型重建 + TODO(V) load（脚手架在 `src/pagent/persistence.py` 与 `tests/test_persistence.py`）；收官亲手点：重启进程恢复对话。M6 后进「PAgent 2.0」规划（决策记录已排：REGISTRY 对象化 → 事件总线 → 分包）
-- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（49 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
+- **下一步**：M6-01 收官亲手点（重启进程恢复对话）→ PAgent 2.0 规划（决策记录已排：REGISTRY 对象化 → 事件总线 → 持久化层 pydantic 判别联合化；分包已完成）
+- **运行环境**：deepseek-harness 已构建；PAgent uv 环境在**根目录**（53 passed）；`.env` 已配置；依赖 httpx / fastapi / uvicorn / pydantic（M3 起解禁三方）
 
 ## 里程碑进度
 
@@ -20,7 +22,8 @@
 | M3 工具系统 | ✅ 完成 | 3 节全绿（39 passed）：@tool+pydantic、bash_run+错误分层、wire format+真工具接入；「新增工具=带注解函数+@tool」达成 |
 | M4 上下文管理 | ✅ 完成 | 2 节全绿（46 passed）：usage 分流记账 + 投影；压缩哨兵 + 投影重建 + 预算触发；两条词汇表不变式入库 |
 | M5 子代理 | ✅ 完成 | 1 节全绿（49 passed）：委派 seam + spawn 工具 + 工厂模式三梯度；「@tool 薄壳、能力内核」原则入库 |
-| M6 会话持久化 | 进行中 | 第 1 节已交付（JSONL 双向边界）；路线图最后一节，收官后进 PAgent 2.0 规划 |
+| M6 会话持久化 | ✅ 完成 | 1 节全绿（53 passed）：JSONL 双向边界（save 打标签 / load 按类型重建）+ 版本 header；**PAgent 1.0 路线图收官** |
+| PAgent 2.0 | 规划中 | REGISTRY 对象化 → 事件总线 → 持久化层 pydantic 判别联合化；分包已完成 |
 
 ## 关键收获
 
@@ -54,6 +57,9 @@
 - **@tool 永远是薄壳，能力沉淀为内核函数**：模型可见的参数契约进薄壳（factory 依赖注入参数不能进模型参数表），能力内核独立可测可复用（harness 同款分层：服务包与工具包分离）。（M5-01 讨论确认）
 - **工厂三梯度**：造数据（fixture）→ 造类（create_model）→ 造协作体（spawn 工厂）；创建推迟 + 细节可替换居其一方才值得，否则抽象税。（M5-01 讨论确认）
 - **装配时注册 vs 运行时实例**：make_spawn_tool 调一次登记一个工具；每次 spawn 创建的是子 Agent 实例（0 次新注册）。工具 schema 面向父模型、子级 system_prompt 面向子模型——两份说明别混。（M5-01 讨论确认）
+- **序列化边界是双向的，两半纪律不同**：出（save）——asdict 剥 ClassVar，**类型标签必须在写侧补回**（_dump_block/_dump_chunk）；进（load）——按词汇表重建，● 字段全走 dataclass。恢复 = 读回，投影不需要知道进程死过。（M6-01 讨论确认）
+- **spec 自相矛盾会被忠实实现暴露**：save 用裸 asdict、revive 按 type 分派——两个 spec 单看都对、合在一起必 KeyError。双向扫描不只查测试没覆盖的路径，也查「两个规格合成后的隐含矛盾」。（M6-01 实战）
+- **写序列化/重建代码时开着词汇表抄字段**：字段漂移（args/arguments、缺 index、清单混入 harness 幽灵事件）全部源于凭记忆——session.py 词汇表 + types.py 就是字段清单本身。（M6-01 实战）
 
 ## 遗留问题 / 待办
 
