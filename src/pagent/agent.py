@@ -24,6 +24,7 @@ class Agent:
         model: str = "default",
         system_prompt: str | None = None,
         max_steps: int | None = None,  # 单个 turn 的 step 上限（防跑飞；None=不限）
+        max_input_tokens: int | None = None,  # M4-02：单请求 input 预算，逼近即触发压缩（None=不限）
     ) -> None:
         self.id = id
         self.session = session
@@ -32,6 +33,7 @@ class Agent:
         self.model = model
         self.system_prompt = system_prompt
         self.max_steps = max_steps
+        self.max_input_tokens = max_input_tokens
         self.inbox = Inbox()
         # 是否正在 turn 中——loop 维护；steer() 靠它决定走哪条通道
         self.running = False

@@ -61,6 +61,8 @@ class Session:
     #   assistant/chunk    turn, step, chunk: StreamChunk       ●  六种 chunk 之一（回放/UI 数据，不进投影）
     #   assistant/message  turn, step, content: list[ContentBlock]  ●  组装完毕的完整回复
     #   assistant/usage    turn, step, usage: TokenUsage         ●  本 step 的 token 记账（M4-01）
+    #   compaction/end     upto_seq: int, summary: str              压缩哨兵（M4-02）：seq ≤ upto_seq
+    #                                                             的叙事已折叠为 summary，投影时重建
     #   tool/call          turn, step, call_id: str, name: str,
     #                      arguments: str                          模型产出的原始 JSON 串
     #   tool/result        turn, step, call_id: str,
@@ -109,6 +111,19 @@ class Session:
 
         return {"input_tokens": input_token, "output_tokens": output_token}
 
+    # ── TODO(P)：压缩 —— M4-02 亲手写 ────────────────────────────────
+    # ①语义：append-only 的日志没有「删除」——压缩 = 追加一条 compaction/end
+    #        哨兵事件：声明「seq ≤ upto_seq 的叙事已折叠为 summary」。
+    #        摘要 v0 用截断拼接 stub（把被覆盖的 user/assistant/tool 内容
+    #        拼成短文本），真摘要（LLM 自摘要）是进阶项。
+    # ②伪代码：
+    #   pieces = []
+    #   遍历 seq ≤ upto_seq 的事件，user/message、assistant/message、
+    #   tool/result 的文本片段收进 pieces（每条截到 ~50 字符）
+    #   summary = "\n".join(pieces)
+    #   return self.append("compaction/end", {"upto_seq": upto_seq, "summary": summary})
+    # def compact(self, upto_seq: int) -> SessionEvent: ...
+
     def derive_messages(self) -> list[Message]:
         """把日志投影成模型历史（对照 Session.deriveMessages()）。
 
@@ -117,6 +132,17 @@ class Session:
         通用形态，各家的 wire format 差异由 adapter 吸收）。
         """
         messages: list[Message] = []
+        # ── TODO(O)：投影哨兵规则 —— M4-02 亲手写 ────────────────────────
+        # ①语义：derive_messages 遇到 compaction/end 时，把已累积的 messages
+        #        整体替换为一条摘要消息（复用 <context> 信封思想：
+        #        TextBlock(f"<compacted>{summary}</compacted>")）——此前的
+        #        原文不再投影；之后的照旧累积。多次压缩以最后一次为准
+        #        （后到的哨兵自然再次重建）。
+        # ②伪代码（插在循环体最前）：
+        #   if event.type == "compaction/end":
+        #       messages = [Message(role="user",
+        #           content=[TextBlock(f"<compacted>{event.data['summary']}</compacted>")])]
+        # ③注意：这比「记住压缩点、分段遍历」简单一个量级，且天然支持多次压缩。
         for event in self._events:
             if event.type == "user/message":
                 messages.append(Message(role="user", content=event.data["content"]))

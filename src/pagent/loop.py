@@ -106,6 +106,20 @@ async def run_turn(agent: Agent) -> None:
         #   turn/end reason ← error 有则 "error"
 
         try:
+            # ── TODO(Q)：压缩触发 ── M4-02 亲手写（组装请求之前）──────────
+            # ①语义：M4-01 账本的消费方。最近一笔 usage 的 input_tokens 逼近
+            #        预算（agent.max_input_tokens，None=不限）→ 立即压缩：
+            #        把截至当前最后一条事件的叙事折叠成摘要（session.compact）。
+            #        触发点在组装请求之前——正是「下一轮 input」成型前瘦身；
+            #        压缩后 derive_messages 自动重建，本 step 请求即刻变轻。
+            # ②伪代码：
+            #   if agent.max_input_tokens is not None:
+            #       usage_events = [e for e in session.events
+            #                       if e.type == "assistant/usage"]
+            #       last = usage_events[-1].data["usage"].input_tokens if usage_events else 0
+            #       if last >= agent.max_input_tokens:
+            #           session.compact(upto_seq=session.events[-1].seq)
+
             # ---- 组装请求：模型历史是日志的投影，不是你手里攒的列表 ----
             request = GenerateOptions(
                 model=agent.model,
