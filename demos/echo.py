@@ -16,8 +16,8 @@ import asyncio
 from collections.abc import AsyncIterator
 
 from demos.common import build_agent
-from pagent.adapter import LLMAdapter
-from pagent.types import (
+from pagent.llm.adapter import LLMAdapter
+from pagent.core.types import (
     BlockEnd,
     BlockStart,
     Finish,
@@ -32,7 +32,7 @@ from pagent.types import (
     ToolResultBlock,
     UsageChunk,
 )
-from pagent.mock import text_response, tool_call_response
+from pagent.llm.mock import text_response, tool_call_response
 
 
 class EchoAdapter(LLMAdapter):

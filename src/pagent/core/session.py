@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from pagent.types import ContentBlock, Message, TextBlock, TokenUsage, ToolResultBlock
+from pagent.core.types import ContentBlock, Message, TextBlock, TokenUsage, ToolResultBlock
 
 
 @dataclass(frozen=True)

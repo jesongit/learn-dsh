@@ -10,8 +10,8 @@ from __future__ import annotations
 
 import pytest
 
-from pagent.deepseek import DeepSeekAdapter
-from pagent.types import (
+from pagent.llm.deepseek import DeepSeekAdapter
+from pagent.core.types import (
     GenerateOptions,
     Message,
     TextBlock,

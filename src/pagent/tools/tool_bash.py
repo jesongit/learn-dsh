@@ -13,7 +13,7 @@ from __future__ import annotations
 
 import subprocess
 
-from pagent.tools import tool
+from pagent.tools.registry import tool
 
 
 # ── M3-02 亲手写区 ── 按 TODO(S) → (T) 顺序 ──────────────────────────────

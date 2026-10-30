@@ -21,7 +21,7 @@ from typing import Any
 
 from pydantic import BaseModel, Field, ValidationError, create_model
 
-from pagent.types import ContentBlock, TextBlock, ToolSchema
+from pagent.core.types import ContentBlock, TextBlock, ToolSchema
 
 
 @dataclass(frozen=True)

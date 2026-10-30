@@ -19,8 +19,8 @@ from collections.abc import AsyncIterator
 
 from demos.common import load_env
 
-from pagent.adapter import LLMAdapter
-from pagent.types import (
+from pagent.llm.adapter import LLMAdapter
+from pagent.core.types import (
     BlockEnd,
     BlockStart,
     Finish,

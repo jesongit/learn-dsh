@@ -9,9 +9,9 @@ from __future__ import annotations
 
 import asyncio
 
-from pagent.inbox import Inbox, InboxMessage
-from pagent.tools import ToolService
-from pagent.types import ContentBlock
+from pagent.core.inbox import Inbox, InboxMessage
+from pagent.tools.registry import ToolService
+from pagent.core.types import ContentBlock
 
 
 class Agent:
@@ -61,7 +61,7 @@ class Agent:
     # 「函数内本地 import」打破循环（Python 惯用手法，注释讲明即可）。
     # def start(self) -> asyncio.Task: ...
     def start(self) -> asyncio.Task:
-        from pagent.loop import run_loop
+        from pagent.core.loop import run_loop
         self._task = asyncio.create_task(run_loop(self))
         return self._task
 

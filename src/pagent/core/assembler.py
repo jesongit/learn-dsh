@@ -12,7 +12,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
-from pagent.types import (
+from pagent.core.types import (
     BlockEnd,
     BlockStart,
     ContentBlock,

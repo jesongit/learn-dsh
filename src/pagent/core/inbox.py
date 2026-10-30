@@ -12,7 +12,7 @@ from __future__ import annotations
 import asyncio
 from dataclasses import dataclass
 
-from pagent.types import ContentBlock
+from pagent.core.types import ContentBlock
 
 
 @dataclass(frozen=True)

@@ -1,6 +1,6 @@
 # M3 · 第 3 节 · 工具 wire format：让模型真的调用工具
 
-> 备课出处（选读）：`deepseek-harness` 的 `ab19fed77c`（DeepSeek 适配器）、`packages/llm` 词汇类型；对照本仓库 [src/pagent/deepseek.py](../../src/pagent/deepseek.py) 现状与 [demos/common.py](../../demos/common.py) 里「工具 wire format 是 M3 主菜（M2-01 遗留）」的注记。
+> 备课出处（选读）：`deepseek-harness` 的 `ab19fed77c`（DeepSeek 适配器）、`packages/llm` 词汇类型；对照本仓库 [src/pagent/llm/deepseek.py](../../src/pagent/llm/deepseek.py) 现状与 [demos/common.py](../../demos/common.py) 里「工具 wire format 是 M3 主菜（M2-01 遗留）」的注记。
 
 ## 本节目标
 
@@ -67,7 +67,7 @@ sequenceDiagram
 
 ## 3. 关键代码片段讲解
 
-现状的两处缺口（[src/pagent/deepseek.py](../../src/pagent/deepseek.py)，你 M2-01 的代码）：
+现状的两处缺口（[src/pagent/llm/deepseek.py](../../src/pagent/llm/deepseek.py)，你 M2-01 的代码）：
 
 ```python
 def _build_body(self, options: GenerateOptions) -> dict:
@@ -85,18 +85,18 @@ def _build_body(self, options: GenerateOptions) -> dict:
 ## 4. 备课出处（选读）
 
 - `git -C deepseek-harness show ab19fed77c`（DeepSeek 适配器：请求构造与流式翻译的分层，与我们的 TODO(A)~(D) 同构）
-- 本仓库 `src/pagent/deepseek.py` 的 `SSE_SAMPLE`（tool_calls 分片的真实 wire 采样，M2-01 教训：每帧都带 `finish_reason` 键、中间帧为 null）
+- 本仓库 `src/pagent/llm/deepseek.py` 的 `SSE_SAMPLE`（tool_calls 分片的真实 wire 采样，M2-01 教训：每帧都带 `finish_reason` 键、中间帧为 null）
 - [demos/common.py](../../demos/common.py) `build_agent` 注释：「工具结果的 wire format 是 M3 主菜（M2-01 遗留）」
 
 ## 5. 编码任务
 
 | TODO | 文件 | 语义 | 复杂处 |
 |---|---|---|---|
-| E | [src/pagent/deepseek.py](../../src/pagent/deepseek.py) | `_build_body` 挂 tools 说明书：`ToolSchema` → `{"type":"function","function":{…}}`（伪代码在 TODO(E) 注释里） | 直译，热身 |
+| E | [src/pagent/llm/deepseek.py](../../src/pagent/llm/deepseek.py) | `_build_body` 挂 tools 说明书：`ToolSchema` → `{"type":"function","function":{…}}`（伪代码在 TODO(E) 注释里） | 直译，热身 |
 | F | 同上 | 消息翻译升级：assistant 的 `ToolCallBlock` → `tool_calls` 数组；user 的 `ToolResultBlock` → 独立 `role:"tool"` 消息（id 对账）；纯文本走 M2-01 老路 | `_build_body` 整体重构；**顺序约束**——tool_calls 后必须紧跟每个 id 的 role:"tool"，缺则 400 |
 
 作业区（AI）：[tests/test_tool_wire.py](../../tests/test_tool_wire.py)——三条 skip 挂起（E 一条、F 两条）+ 一条纯文本回归护栏当场绿（M2-01 行为不许被重构破坏）。
-已备好（AI）：[src/pagent/tool_weibo.py](../../src/pagent/tool_weibo.py)（`fetch_weibo_hot_search` 真工具样板，async @tool）；[demos/common.py](../../demos/common.py) 接线（**导入即注册**——`build_agent` import 两个工具模块，`ToolService` 读全局 `REGISTRY` 自动带上）。
+已备好（AI）：[src/pagent/tools/tool_weibo.py](../../src/pagent/tools/tool_weibo.py)（`fetch_weibo_hot_search` 真工具样板，async @tool）；[demos/common.py](../../demos/common.py) 接线（**导入即注册**——`build_agent` import 两个工具模块，`ToolService` 读全局 `REGISTRY` 自动带上）。
 
 <a id="lesson-log"></a>
 ### 编码实录

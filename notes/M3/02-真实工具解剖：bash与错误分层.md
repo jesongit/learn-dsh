@@ -97,7 +97,7 @@ function validateBashArgs(args: {...}): void {
 
 | TODO | 文件 | 语义 | 复杂处 |
 |---|---|---|---|
-| S | [src/pagent/tool_bash.py](../../src/pagent/tool_bash.py) | `render_result`：结果整形纯函数——stdout 打头、`[stderr]` 分节、`(no output)` 哨兵、尾部状态标记逐行追加 | 纯函数永不抛错；`timed_out` 与 `exit_code` 两条独立标记 |
+| S | [src/pagent/tools/tool_bash.py](../../src/pagent/tools/tool_bash.py) | `render_result`：结果整形纯函数——stdout 打头、`[stderr]` 分节、`(no output)` 哨兵、尾部状态标记逐行追加 | 纯函数永不抛错；`timed_out` 与 `exit_code` 两条独立标记 |
 | T | 同上 | `bash_run`：`@tool` 接第一个真活——subprocess 执行 + 错误分层 | `OSError` 让它炸出去（execute 兜成 is_error）；`TimeoutExpired` 必须自己抓（超时是数据！） |
 
 作业区（AI）：[tests/test_tool_bash.py](../../tests/test_tool_bash.py)——`render_result` 四分支 + `bash_run` 四层行为（含 `monkeypatch` 模拟 spawn 故障），交付时全部 skip 挂起。`[exit code: 1]` 那条是本节灵魂：**非零退出 is_error=False**。

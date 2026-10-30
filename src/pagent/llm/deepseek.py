@@ -14,8 +14,8 @@ from collections.abc import AsyncIterator
 
 import httpx
 
-from pagent.adapter import LLMAdapter
-from pagent.types import (
+from pagent.llm.adapter import LLMAdapter
+from pagent.core.types import (
     Finish,
     GenerateOptions,
     Message,

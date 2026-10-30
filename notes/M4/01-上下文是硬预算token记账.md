@@ -40,7 +40,7 @@ flowchart LR
 
 ## 3. 关键代码片段讲解
 
-现状的记账缺口（[src/pagent/deepseek.py](../../src/pagent/deepseek.py)，你 M2-01 的代码）：
+现状的记账缺口（[src/pagent/llm/deepseek.py](../../src/pagent/llm/deepseek.py)，你 M2-01 的代码）：
 
 ```python
 @staticmethod
@@ -55,15 +55,15 @@ def translate_event(event: dict) -> list[StreamChunk]:
 ## 4. 备课出处（选读）
 
 - [docs/subsystems/compaction.zh.md](../../deepseek-harness/docs/subsystems/compaction.zh.md)——`compaction/*` 会话事件、工具结果剪枝、`CompactionEngine` seam（M4-02 的地图）
-- 本仓库 `src/pagent/types.py` 的 `TokenUsage`/`UsageChunk`（M1-01 埋的伏笔）；`src/pagent/session.py` 事件词汇表（新增事件先登记的规矩）
+- 本仓库 `src/pagent/core/types.py` 的 `TokenUsage`/`UsageChunk`（M1-01 埋的伏笔）；`src/pagent/core/session.py` 事件词汇表（新增事件先登记的规矩）
 
 ## 5. 编码任务
 
 | TODO | 文件 | 语义 | 复杂处 |
 |---|---|---|---|
-| G | [src/pagent/deepseek.py](../../src/pagent/deepseek.py) | `translate_event` 接回 usage 帧 → `UsageChunk`（**第一步：采样真实 wire**——帧形状、挂靠位置、要不要开关参数，以实测为准，测试断言与实现一起改） | 别脑补 wire（M2-01 教训） |
-| M | [src/pagent/loop.py](../../src/pagent/loop.py) | `UsageChunk` 从 chunk 流分流：记 `assistant/usage` 事件（词汇表已登记），不进 assembler、不再混入 chunk 事件 | 账本与内容分流 |
-| N | [src/pagent/session.py](../../src/pagent/session.py) | `usage_report()`：日志的又一个投影——扫 `assistant/usage` 事件汇总 input/output | 投影思想的第三次兑现 |
+| G | [src/pagent/llm/deepseek.py](../../src/pagent/llm/deepseek.py) | `translate_event` 接回 usage 帧 → `UsageChunk`（**第一步：采样真实 wire**——帧形状、挂靠位置、要不要开关参数，以实测为准，测试断言与实现一起改） | 别脑补 wire（M2-01 教训） |
+| M | [src/pagent/core/loop.py](../../src/pagent/core/loop.py) | `UsageChunk` 从 chunk 流分流：记 `assistant/usage` 事件（词汇表已登记），不进 assembler、不再混入 chunk 事件 | 账本与内容分流 |
+| N | [src/pagent/core/session.py](../../src/pagent/core/session.py) | `usage_report()`：日志的又一个投影——扫 `assistant/usage` 事件汇总 input/output | 投影思想的第三次兑现 |
 
 作业区（AI）：[tests/test_usage.py](../../tests/test_usage.py)——三条 skip 挂起（G 一条、M 一条、N 一条），按 G→M→N 顺序解锁。M 的用例顺带锁「chunk 事件里不再泄漏 UsageChunk」。
 

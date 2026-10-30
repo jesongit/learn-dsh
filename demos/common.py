@@ -6,12 +6,12 @@ import asyncio
 import os
 from collections.abc import AsyncIterator
 
-from pagent.adapter import LLMAdapter, LlmService
-from pagent.agent import Agent
-from pagent.deepseek import DeepSeekAdapter
-from pagent.session import Session
-from pagent.tools import ToolService
-from pagent.types import TextBlock, TextDelta
+from pagent.llm.adapter import LLMAdapter, LlmService
+from pagent.core.agent import Agent
+from pagent.llm.deepseek import DeepSeekAdapter
+from pagent.core.session import Session
+from pagent.tools.registry import ToolService
+from pagent.core.types import TextBlock, TextDelta
 
 # 每个 chunk 之间的人为停顿（秒）——给 /stop、/steer 留出手速窗口；0 = 火箭模式
 STREAM_DELAY = 0.05
@@ -54,8 +54,8 @@ def build_agent() -> Agent:
     M3-03 起接真工具：@tool 装饰即写全局 REGISTRY，ToolService 读它——
     所以「接线」只是把工具模块 import 进来（导入即注册）。
     """
-    from pagent import tool_bash  # noqa: F401 —— 导入即完成 @tool 登记
-    from pagent import tool_weibo  # noqa: F401
+    from pagent.tools import tool_bash  # noqa: F401 —— 导入即完成 @tool 登记
+    from pagent.tools import tool_weibo  # noqa: F401
     load_env()
     api_key = os.environ.get("DEEPSEEK_API_KEY")
     if not api_key:
@@ -69,7 +69,7 @@ def build_agent() -> Agent:
     )
 
     # M5-01：委派工具——工厂闭包造子级（同 llm、独立 Session、max_steps 防跑飞）
-    from pagent.tool_subagent import make_spawn_tool
+    from pagent.tools.tool_subagent import make_spawn_tool
     make_spawn_tool(lambda: Agent(
         id="deepseek-child",
         session=Session("child"),

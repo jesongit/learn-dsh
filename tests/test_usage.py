@@ -16,14 +16,14 @@ from __future__ import annotations
 
 import pytest
 
-from pagent.adapter import LlmService
-from pagent.agent import Agent
-from pagent.deepseek import DeepSeekAdapter
-from pagent.loop import run_until_idle
-from pagent.mock import MockAdapter, text_response, tool_call_response
-from pagent.session import Session
-from pagent.tools import ToolService
-from pagent.types import TextBlock, TokenUsage, UsageChunk
+from pagent.llm.adapter import LlmService
+from pagent.core.agent import Agent
+from pagent.llm.deepseek import DeepSeekAdapter
+from pagent.core.loop import run_until_idle
+from pagent.llm.mock import MockAdapter, text_response, tool_call_response
+from pagent.core.session import Session
+from pagent.tools.registry import ToolService
+from pagent.core.types import TextBlock, TokenUsage, UsageChunk
 
 
 

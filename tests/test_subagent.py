@@ -16,12 +16,12 @@ import asyncio
 
 import pytest
 
-from pagent.adapter import LlmService
-from pagent.agent import Agent
-from pagent.mock import MockAdapter, text_response
-from pagent.session import Session
-from pagent.tools import ToolService
-from pagent.types import TextBlock
+from pagent.llm.adapter import LlmService
+from pagent.core.agent import Agent
+from pagent.llm.mock import MockAdapter, text_response
+from pagent.core.session import Session
+from pagent.tools.registry import ToolService
+from pagent.core.types import TextBlock
 
 
 def _make_factory(sessions: list[Session], reply: str = "子任务完成"):
@@ -42,7 +42,7 @@ def _make_factory(sessions: list[Session], reply: str = "子任务完成"):
 @pytest.mark.skip(reason="TODO(R) 实现后删除本行")
 def test_run_subagent_returns_terminal_result():
     """契约：终态语义 = [reason] + 最终回复；子级是独立事件叙事。"""
-    from pagent.tool_subagent import run_subagent
+    from pagent.tools.tool_subagent import run_subagent
 
     sessions: list[Session] = []
     factory = _make_factory(sessions, reply="子任务完成")
@@ -59,7 +59,7 @@ def test_run_subagent_returns_terminal_result():
 @pytest.mark.skip(reason="TODO(S) 实现后删除本行")
 def test_spawn_via_tool_service():
     """契约：make_spawn_tool 注册后，经 ToolService 全管线可用（async 工具被 execute await）。"""
-    from pagent.tool_subagent import make_spawn_tool
+    from pagent.tools.tool_subagent import make_spawn_tool
 
     sessions: list[Session] = []
     factory = _make_factory(sessions)
@@ -75,7 +75,7 @@ def test_spawn_via_tool_service():
 @pytest.mark.skip(reason="TODO(R) 实现后删除本行")
 def test_child_failure_surfaces_as_terminal():
     """契约：子级失败也是终态数据——[error] 回收，父级不炸。"""
-    from pagent.tool_subagent import run_subagent
+    from pagent.tools.tool_subagent import run_subagent
 
     llm = LlmService()
     llm.register(["mock"], MockAdapter([]))  # 空脚本：子级模型调用必然失败

@@ -16,7 +16,7 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 
-from pagent.types import GenerateOptions, StreamChunk
+from pagent.core.types import GenerateOptions, StreamChunk
 
 
 class LLMAdapter(ABC):

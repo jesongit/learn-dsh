@@ -10,8 +10,8 @@ import json
 
 import httpx
 
-from pagent.deepseek import SSE_SAMPLE, DeepSeekAdapter
-from pagent.types import (
+from pagent.llm.deepseek import SSE_SAMPLE, DeepSeekAdapter
+from pagent.core.types import (
     Finish,
     GenerateOptions,
     Message,

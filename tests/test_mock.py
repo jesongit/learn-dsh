@@ -13,8 +13,8 @@ import json
 
 import pytest
 
-from pagent.mock import MockAdapter, text_response, tool_call_response
-from pagent.types import (
+from pagent.llm.mock import MockAdapter, text_response, tool_call_response
+from pagent.core.types import (
     BlockEnd,
     BlockStart,
     Finish,

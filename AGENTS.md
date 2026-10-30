@@ -16,9 +16,13 @@
 D:\code\PAgent\
 ├── AGENTS.md          # 本文件：教学规则 + 路线图（很少改动）
 ├── PROGRESS.md        # 学习记忆：进度、收获、遗留问题、决策记录（每次会话更新）
-├── notes/             # 教材：每个里程碑的学习笔记
+├── notes/             # 教材：每个里程碑的学习笔记（M0 总览 + M1–M6 分章）
 ├── pyproject.toml     # uv 项目定义（根目录即项目）
-├── src/pagent/        # PAgent 源码（Python 包）
+├── src/pagent/        # PAgent 源码，按域分包（M5-01 后定稿）：
+│   ├── core/          #   循环引擎域：types 词汇表 · session 日志 · inbox · loop · agent · assembler
+│   ├── llm/           #   模型域：adapter seam 接口 · mock · deepseek
+│   ├── tools/         #   工具域：registry（注册表+@tool）· tool_bash · tool_weibo · tool_subagent
+│   └── persistence.py #   M6-01 新增：会话持久化
 ├── tests/             # pytest 测试
 ├── demos/echo.py       # 演示：终端对话（M1-04）
 ├── demos/smoke.py      # 演示：真实 API 冒烟（M1 收尾）

@@ -27,8 +27,8 @@ from fastapi import FastAPI, Request
 from fastapi.responses import HTMLResponse, StreamingResponse
 from pydantic import BaseModel
 
-from pagent.agent import Agent
-from pagent.types import TextBlock
+from pagent.core.agent import Agent
+from pagent.core.types import TextBlock
 
 # ── 全局 agent：lifespan 启动时创建，全应用共享同一个常驻循环 ────────────
 agent: Agent | None = None

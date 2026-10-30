@@ -19,9 +19,9 @@ from __future__ import annotations
 
 import asyncio
 import json
-from pagent.agent import Agent
-from pagent.assembler import BlockAssembler
-from pagent.types import GenerateOptions, ToolCallBlock, UsageChunk
+from pagent.core.agent import Agent
+from pagent.core.assembler import BlockAssembler
+from pagent.core.types import GenerateOptions, ToolCallBlock, UsageChunk
 
 
 async def run_loop(agent: Agent) -> None:

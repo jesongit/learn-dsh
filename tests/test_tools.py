@@ -6,7 +6,7 @@
 运行：uv run pytest tests/test_tools.py -v
 
 注意两点：
-- `from pagent.tools import tool` 写在测试函数体内——你删掉实现后重写期间，
+- `from pagent.tools.registry import tool` 写在测试函数体内——你删掉实现后重写期间，
   不会拖垮整个文件的收集（失败只发生在具体用例里）。
 - REGISTRY 是模块级共享的：多个用例注册同名工具会互相覆盖、不同名会
   互相可见，所以断言一律按名字取 schema，不假设「注册表里只有它」。
@@ -19,12 +19,12 @@ import json
 
 import pytest
 
-from pagent.tools import REGISTRY, ToolService
+from pagent.tools.registry import REGISTRY, ToolService
 
 
 def test_schema_generated_from_signature_real():
     """契约：@tool 之后 schemas() 的 parameters 从签名长出来，零手写。"""
-    from pagent.tools import tool
+    from pagent.tools.registry import tool
 
     @tool(description="抓取微博热搜榜")
     def fetch_weibo(limit: int = 10) -> list[dict]:
@@ -40,7 +40,7 @@ def test_schema_generated_from_signature_real():
 
 def test_happy_path_executes_with_valid_args():
     """契约：合法参数 → 校验通过 → 执行 → 结果 JSON 化进 ToolOutcome。"""
-    from pagent.tools import tool
+    from pagent.tools.registry import tool
 
     @tool(description="加法")
     def add(a: int, b: int) -> dict:
@@ -53,7 +53,7 @@ def test_happy_path_executes_with_valid_args():
 
 def test_type_mismatch_becomes_error_with_field_name():
     """契约：类型不符 → 字段级错误数据回模型（M1 铁律不变，错误质量升级）。"""
-    from pagent.tools import tool
+    from pagent.tools.registry import tool
 
     @tool(description="加法")
     def add(a: int, b: int) -> dict:
@@ -66,7 +66,7 @@ def test_type_mismatch_becomes_error_with_field_name():
 
 def test_missing_required_becomes_error():
     """契约：缺必填参数（无默认值）同样被校验拦下。"""
-    from pagent.tools import tool
+    from pagent.tools.registry import tool
 
     @tool(description="加法")
     def add(a: int, b: int) -> dict:

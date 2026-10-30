@@ -14,10 +14,10 @@ from __future__ import annotations
 
 from collections.abc import Callable
 
-from pagent.agent import Agent
-from pagent.loop import run_until_idle
-from pagent.tools import tool
-from pagent.types import TextBlock
+from pagent.core.agent import Agent
+from pagent.core.loop import run_until_idle
+from pagent.tools.registry import tool
+from pagent.core.types import TextBlock
 
 
 # TODO(R)：子级装配、运行与回收 —— M5-01 核心 ────────────────────────────

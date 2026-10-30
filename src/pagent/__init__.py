@@ -3,13 +3,13 @@
 M1：词汇表 + adapter 接缝 + mock 模型 + 会话日志 + agent loop。
 """
 
-from pagent.adapter import LLMAdapter, LlmService
-from pagent.agent import Agent
-from pagent.assembler import BlockAssembler
-from pagent.inbox import Inbox, InboxMessage
-from pagent.session import Session, SessionEvent
-from pagent.tools import ToolOutcome, ToolService
-from pagent.types import (
+from pagent.llm.adapter import LLMAdapter, LlmService
+from pagent.core.agent import Agent
+from pagent.core.assembler import BlockAssembler
+from pagent.core.inbox import Inbox, InboxMessage
+from pagent.core.session import Session, SessionEvent
+from pagent.tools.registry import ToolOutcome, ToolService
+from pagent.core.types import (
     BlockEnd,
     BlockStart,
     Finish,

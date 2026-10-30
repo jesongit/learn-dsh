@@ -7,13 +7,13 @@ from __future__ import annotations
 
 import asyncio
 
-from pagent.adapter import LlmService
-from pagent.agent import Agent
-from pagent.inbox import Inbox, InboxMessage
-from pagent.mock import MockAdapter
-from pagent.session import Session
-from pagent.tools import ToolService
-from pagent.types import TextBlock
+from pagent.llm.adapter import LlmService
+from pagent.core.agent import Agent
+from pagent.core.inbox import Inbox, InboxMessage
+from pagent.llm.mock import MockAdapter
+from pagent.core.session import Session
+from pagent.tools.registry import ToolService
+from pagent.core.types import TextBlock
 
 
 def test_wait_for_queued_wakes_on_enqueue():

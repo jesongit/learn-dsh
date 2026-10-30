@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import httpx
 
-from pagent.tools import tool
+from pagent.tools.registry import tool
 
 _API = "https://weibo.com/ajax/side/hotSearch"
 _HEADERS = {"User-Agent": "Mozilla/5.0 (PAgent demo)"}  # 裸 UA 会被拒
