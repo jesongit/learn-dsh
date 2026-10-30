@@ -119,6 +119,10 @@ async def run_turn(agent: Agent) -> None:
             #       last = usage_events[-1].data["usage"].input_tokens if usage_events else 0
             #       if last >= agent.max_input_tokens:
             #           session.compact(upto_seq=session.events[-1].seq)
+            if agent.max_input_tokens is not None:
+                # 设置了压缩阈值 达到阈值则压缩
+                if session.last_input_tokens() >= agent.max_input_tokens:
+                    session.compact(upto_seq=session.events[-1].seq)
 
             # ---- 组装请求：模型历史是日志的投影，不是你手里攒的列表 ----
             request = GenerateOptions(

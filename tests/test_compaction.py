@@ -20,7 +20,7 @@ from pagent.tools import ToolService
 from pagent.types import Message, TextBlock
 
 
-@pytest.mark.skip(reason="TODO(O) 实现后删除本行")
+#@pytest.mark.skip(reason="TODO(O) 实现后删除本行")
 def test_projection_rebuilds_after_compaction():
     """契约：遇 compaction/end 哨兵 → 此前历史整体替换为摘要消息，之后照旧累积。"""
     session = Session("test-projection")
@@ -36,23 +36,32 @@ def test_projection_rebuilds_after_compaction():
     assert messages[1] == Message(role="user", content=[TextBlock(text="压缩后的问题")])
 
 
-@pytest.mark.skip(reason="TODO(P) 实现后删除本行")
+#@pytest.mark.skip(reason="TODO(P) 实现后删除本行")
 def test_compact_appends_sentinel_with_stub_summary():
-    """契约：compact 截至某 seq 的叙事 → 落 compaction/end 哨兵，data 含摘要。"""
+    """契约：compact 截至某 seq 的叙事 → 落 compaction/end 哨兵，data 含摘要。
+
+    折叠对象 = 投影认的五类：steering / context 的内容若不进摘要，
+    哨兵重建后就彻底蒸发（插话常是关键约束，不可丢）。
+    """
     session = Session("test-compact")
     session.append("user/message", {"content": [TextBlock(text="帮我查一下天气好吗")]})
     session.append("assistant/message", {"content": [TextBlock(text="好的我来调用工具")]})
+    session.append("steering/message", {"turn": 1,
+                                        "content": [TextBlock(text="控制在二十字以内")]})
+    session.append("context/message", {"content": [TextBlock(text="用户所在地是北京")]})
 
-    event = session.compact(upto_seq=1)
+    event = session.compact(upto_seq=3)
 
     assert event.type == "compaction/end"
-    assert event.data["upto_seq"] == 1
+    assert event.data["upto_seq"] == 3
     summary = event.data["summary"]
-    assert "查一下天气" in summary  # v0 stub：旧叙事截断拼接
-    assert "调用工具" in summary
+    assert "查一下天气" in summary   # user
+    assert "调用工具" in summary      # assistant
+    assert "二十字以内" in summary    # steering——不折就蒸发
+    assert "北京" in summary          # context——同上
 
 
-@pytest.mark.skip(reason="TODO(Q) 实现后删除本行")
+#@pytest.mark.skip(reason="TODO(Q) 实现后删除本行")
 def test_loop_triggers_compaction_on_budget():
     """契约：最近 usage 的 input 逼近预算 → loop 自动压缩。
 
@@ -82,7 +91,7 @@ def test_loop_triggers_compaction_on_budget():
     assert "done" in projected[1].content[0].text  # 哨兵之后的内容照常累积
 
 
-@pytest.mark.skip(reason="TODO(Q) 实现后删除本行")
+#@pytest.mark.skip(reason="TODO(Q) 实现后删除本行")
 def test_no_compaction_without_budget():
     """回归护栏：未设预算（None）时永不压缩。"""
     session = Session("test-nobudget")

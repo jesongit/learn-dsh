@@ -14,7 +14,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from pagent.types import ContentBlock, Message, TextBlock, ToolResultBlock
+from pagent.types import ContentBlock, Message, TextBlock, TokenUsage, ToolResultBlock
 
 
 @dataclass(frozen=True)
@@ -35,7 +35,7 @@ def _render_tagged(tag: str, content: list[ContentBlock]) -> list[ContentBlock]:
     """
     return [TextBlock(text=f"<{tag}>"), *content, TextBlock(text=f"</{tag}>")]
 
-
+_DERIVE_EVENT_TYPE = ["user/message", "assistant/message", "tool/result", "context/message", "steering/message"]
 class Session:
     """一个会话的事件日志。append 永远成功、永不阻塞——热路径不做 I/O。"""
 
@@ -76,6 +76,9 @@ class Session:
     #
     # 记忆钩子：凡 content / chunk 字段必装 dataclass 对象，其余字段全是
     # JSON 原生类型——序列化边界只需照顾前两类字段。
+    # 不变式二：凡带 content 字段的事件 = 叙事事件 = 进投影（derive_messages
+    # 认的五类）——给新事件加 content 字段即声明它进模型上下文；
+    # 投影按类型分派而非探测键名：新类型漏枚举是显性遗漏，静默泄漏才可怕。
     def append(self, type: str, data: dict) -> SessionEvent:
         event = SessionEvent(
             type=type,
@@ -111,18 +114,40 @@ class Session:
 
         return {"input_tokens": input_token, "output_tokens": output_token}
 
+    def last_input_tokens(self) -> int:
+        for event in reversed(self._events):
+            if event.type == "assistant/usage":
+                token_usage: TokenUsage = event.data["usage"]
+                return token_usage.input_tokens
+        return 0
+
     # ── TODO(P)：压缩 —— M4-02 亲手写 ────────────────────────────────
     # ①语义：append-only 的日志没有「删除」——压缩 = 追加一条 compaction/end
     #        哨兵事件：声明「seq ≤ upto_seq 的叙事已折叠为 summary」。
-    #        摘要 v0 用截断拼接 stub（把被覆盖的 user/assistant/tool 内容
-    #        拼成短文本），真摘要（LLM 自摘要）是进阶项。
+    #        摘要 v0 用截断拼接 stub。折叠对象 = **投影规则认的五类**
+    #        （user/message、assistant/message、tool/result、steering/message、
+    #        context/message）——哨兵重建后，没进摘要的内容会彻底蒸发；
+    #        chunk / usage 不进投影，与压缩无关。
     # ②伪代码：
     #   pieces = []
-    #   遍历 seq ≤ upto_seq 的事件，user/message、assistant/message、
-    #   tool/result 的文本片段收进 pieces（每条截到 ~50 字符）
+    #   遍历 seq ≤ upto_seq 的事件，上述五类的文本片段收进 pieces
+    #   （每条加来源前缀，取事件类型本身：[user]/[assistant]/[tool]/
+    #   [steering]/[context]——与投影的信封区分度一一对应；
+    #   每条截到 ~50 字符）
     #   summary = "\n".join(pieces)
     #   return self.append("compaction/end", {"upto_seq": upto_seq, "summary": summary})
     # def compact(self, upto_seq: int) -> SessionEvent: ...
+    def compact(self, upto_seq: int) -> SessionEvent:
+        # 需要压缩的字段
+        pieces = []
+        for event in self._events:
+            if event.seq > upto_seq:
+                break
+            if event.type in _DERIVE_EVENT_TYPE:
+                text_list = [block.text for block in event.data["content"] if isinstance(block, TextBlock)]
+                content = "".join(text_list)[:50]
+                pieces.append(f"[{event.type.split("/")[0]}]{content}")
+        return self.append("compaction/end", {"upto_seq": upto_seq, "summary": "\n".join(pieces)})
 
     def derive_messages(self) -> list[Message]:
         """把日志投影成模型历史（对照 Session.deriveMessages()）。
@@ -142,9 +167,17 @@ class Session:
         #   if event.type == "compaction/end":
         #       messages = [Message(role="user",
         #           content=[TextBlock(f"<compacted>{event.data['summary']}</compacted>")])]
-        # ③注意：这比「记住压缩点、分段遍历」简单一个量级，且天然支持多次压缩。
+        # ③注意：这条规则内嵌一个假设——**哨兵覆盖其前的全部事件**（所以
+        #        触发方必须传「当时最大 seq」，规则与策略成对自洽）。若未来
+        #        升级「保留最近一轮原文」策略（upto_seq < 最大），本规则必须
+        #        同步升级为覆盖感知版（按 upto_seq 精确重建），否则哨兵与
+        #        upto_seq 之间未覆盖的消息会被误删——触发与投影是同一次
+        #        契约修订的两半，缺一即静默丢消息。
         for event in self._events:
-            if event.type == "user/message":
+            if event.type == "compaction/end":
+                # 遇到压缩点，丢弃之前的消息，只保留往期信息的压缩摘要
+                messages = [Message(role="user", content=[TextBlock(f"<compacted>{event.data['summary']}</compacted>")])]
+            elif event.type == "user/message":
                 messages.append(Message(role="user", content=event.data["content"]))
             elif event.type == "assistant/message":
                 messages.append(Message(role="assistant", content=event.data["content"]))
