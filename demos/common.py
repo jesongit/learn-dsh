@@ -67,6 +67,18 @@ def build_agent() -> Agent:
         ["deepseek-chat"],
         TerminalUI(DeepSeekAdapter(api_key), delay=STREAM_DELAY),
     )
+
+    # M5-01：委派工具——工厂闭包造子级（同 llm、独立 Session、max_steps 防跑飞）
+    from pagent.tool_subagent import make_spawn_tool
+    make_spawn_tool(lambda: Agent(
+        id="deepseek-child",
+        session=Session("child"),
+        llm=llm,
+        tools=ToolService(),
+        system_prompt="你是专注子任务的助手，把任务做完并给出结论",
+        max_steps=8,
+    ))
+
     return Agent(
         id="deepseek",
         session=session,
